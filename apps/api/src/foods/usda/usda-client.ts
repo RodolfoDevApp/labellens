@@ -38,21 +38,29 @@ export function createUsdaClient(): UsdaClient {
 
       const url = new URL(`${appConfig.usdaApiBaseUrl}/foods/search`);
       url.searchParams.set("api_key", appConfig.usdaApiKey);
-      url.searchParams.set("query", query);
-      url.searchParams.set("pageNumber", String(page));
-      url.searchParams.set("pageSize", "10");
-      url.searchParams.set("dataType", "Foundation,SR Legacy,Survey (FNDDS)");
 
       const response = await fetch(url, {
+        method: "POST",
         headers: {
           Accept: "application/json",
+          "Content-Type": "application/json",
           "User-Agent": "LabelLens/0.1 local-dev"
         },
+        body: JSON.stringify({
+          query,
+          pageNumber: page,
+          pageSize: 25,
+          dataType: ["Foundation", "SR Legacy", "Survey (FNDDS)"]
+        }),
         signal: AbortSignal.timeout(8000)
       });
 
       if (!response.ok) {
-        throw new Error(`USDA search failed with status ${response.status}`);
+        const errorBody = await response.text();
+
+        throw new Error(
+          `USDA search failed with status ${response.status}: ${errorBody}`,
+        );
       }
 
       return response.json() as Promise<UsdaSearchResponse>;

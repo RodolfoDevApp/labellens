@@ -25,15 +25,21 @@ export type FoodItemDto = {
 export type FoodSearchResponseDto = {
   items: FoodItemDto[];
   source: "USDA";
+  sourceMode: "live" | "fixture";
+  queryUsed: string;
   page: number;
 };
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
 
-export async function searchFoods(query: string): Promise<FoodSearchResponseDto> {
+export async function searchFoods(
+  query: string,
+  page = 1,
+): Promise<FoodSearchResponseDto> {
   const url = new URL("/api/v1/foods/search", API_BASE_URL);
   url.searchParams.set("q", query);
+  url.searchParams.set("page", String(page));
 
   const response = await fetch(url);
 

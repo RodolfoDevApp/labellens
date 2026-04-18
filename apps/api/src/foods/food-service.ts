@@ -4,6 +4,7 @@ import { foodFixtures } from "../fixtures/food-fixtures.js";
 import { normalizeSearchText, translateFoodQuery } from "../shared/food-query-translator.js";
 import { createUsdaClient } from "./usda/usda-client.js";
 import { normalizeUsdaSearchFood } from "./usda/usda-normalizer.js";
+import { rankUsdaFoods } from "./usda-ranking.js";
 
 export type FoodSearchSourceMode = "live" | "fixture";
 
@@ -62,7 +63,9 @@ export async function searchFoods(query: string, page = 1): Promise<FoodSearchRe
   const response = await usdaClient.searchFoods(translatedQuery, page);
 
   return {
-    items: (response.foods ?? []).map(normalizeUsdaSearchFood),
+    items: rankUsdaFoods(response.foods ?? [], translatedQuery)
+      .slice(0, 10)
+      .map(normalizeUsdaSearchFood),
     source: "USDA",
     sourceMode: "live",
     queryUsed: translatedQuery
