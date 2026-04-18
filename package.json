@@ -1,0 +1,31 @@
+{
+  "name": "labellens",
+  "version": "0.1.0",
+  "private": true,
+  "description": "LabelLens mobile-first PWA: scanner de productos, calculadora de menus por gramos y perfil nutricional.",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "infra/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w apps/web",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier . --write",
+    "check": "npm run lint && npm run test && npm run build",
+    "compose:up": "docker compose -f infra/compose/docker-compose.yml up -d",
+    "compose:down": "docker compose -f infra/compose/docker-compose.yml down",
+    "compose:ps": "docker compose -f infra/compose/docker-compose.yml ps",
+    "export": "powershell -ExecutionPolicy Bypass -File scripts/export-repo.ps1"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}
