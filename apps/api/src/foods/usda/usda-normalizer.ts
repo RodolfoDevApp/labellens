@@ -1,20 +1,32 @@
-﻿import type { FoodItem, NutritionFacts } from "@labellens/domain";
+import type { FoodItem, NutritionFacts } from "@labellens/domain";
 import type { UsdaSearchFood, UsdaFoodNutrient } from "./usda-client.js";
+
+function getNutrientId(nutrient: UsdaFoodNutrient): number | undefined {
+  return nutrient.nutrientId ?? nutrient.nutrient?.id;
+}
+
+function getNutrientValue(nutrient: UsdaFoodNutrient): number | undefined {
+  return nutrient.value ?? nutrient.amount;
+}
 
 function findNutrientValue(
   nutrients: UsdaFoodNutrient[] | undefined,
   nutrientId: number,
 ): number | null {
-  const nutrient = nutrients?.find((item) => item.nutrientId === nutrientId);
-  return typeof nutrient?.value === "number" ? nutrient.value : null;
+  const nutrient = nutrients?.find((item) => getNutrientId(item) === nutrientId);
+  const value = nutrient ? getNutrientValue(nutrient) : undefined;
+
+  return typeof value === "number" ? value : null;
 }
 
-function calculateCompleteness(nutrition: Omit<NutritionFacts, "source" | "sourceId" | "lastFetchedAt" | "completeness">): NutritionFacts["completeness"] {
+function calculateCompleteness(
+  nutrition: Omit<NutritionFacts, "source" | "sourceId" | "lastFetchedAt" | "completeness">,
+): NutritionFacts["completeness"] {
   const requiredValues = [
     nutrition.energyKcalPer100g,
     nutrition.proteinGPer100g,
     nutrition.carbsGPer100g,
-    nutrition.fatGPer100g
+    nutrition.fatGPer100g,
   ];
 
   const presentCount = requiredValues.filter((value) => value !== null).length;
@@ -30,7 +42,7 @@ function calculateCompleteness(nutrition: Omit<NutritionFacts, "source" | "sourc
   return "LOW";
 }
 
-export function normalizeUsdaSearchFood(food: UsdaSearchFood): FoodItem {
+export function normalizeUsdaFood(food: UsdaSearchFood): FoodItem {
   const baseNutrition = {
     energyKcalPer100g: findNutrientValue(food.foodNutrients, 1008),
     proteinGPer100g: findNutrientValue(food.foodNutrients, 1003),
@@ -38,7 +50,7 @@ export function normalizeUsdaSearchFood(food: UsdaSearchFood): FoodItem {
     fatGPer100g: findNutrientValue(food.foodNutrients, 1004),
     sugarGPer100g: findNutrientValue(food.foodNutrients, 2000),
     fiberGPer100g: findNutrientValue(food.foodNutrients, 1079),
-    sodiumMgPer100g: findNutrientValue(food.foodNutrients, 1093)
+    sodiumMgPer100g: findNutrientValue(food.foodNutrients, 1093),
   };
 
   return {
@@ -53,7 +65,9 @@ export function normalizeUsdaSearchFood(food: UsdaSearchFood): FoodItem {
       source: "USDA",
       sourceId: String(food.fdcId),
       lastFetchedAt: new Date().toISOString(),
-      completeness: calculateCompleteness(baseNutrition)
-    }
+      completeness: calculateCompleteness(baseNutrition),
+    },
   };
 }
+
+export const normalizeUsdaSearchFood = normalizeUsdaFood;

@@ -1,4 +1,4 @@
-﻿import { type SortKey } from "../hooks/useFoodSearch";
+import { type SortKey } from "../hooks/useFoodSearch";
 
 type FoodResultsToolbarProps = {
   sortBy: SortKey;
@@ -18,9 +18,9 @@ export function FoodResultsToolbar({
   onSortChange,
 }: FoodResultsToolbarProps) {
   return (
-    <div className="ll-row-in mb-4 rounded-[2rem] bg-white p-3 shadow-sm ring-1 ring-slate-200">
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-        Sort results
+    <div className="ll-row-in mb-4 rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-3 shadow-[0_12px_30px_rgba(88,61,24,0.08)]">
+      <p className="text-xs font-black uppercase tracking-wide text-[#6b5430]">
+        Sort source values
       </p>
 
       <div className="mt-2 flex flex-wrap gap-2">
@@ -34,8 +34,8 @@ export function FoodResultsToolbar({
               onClick={() => onSortChange(option.key)}
               className={
                 isActive
-                  ? "ll-interactive min-h-10 rounded-full bg-slate-950 px-4 text-xs font-black text-white shadow-sm hover:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-300"
-                  : "ll-interactive min-h-10 rounded-full bg-slate-50 px-4 text-xs font-black text-slate-700 ring-1 ring-slate-200 hover:bg-white hover:ring-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                  ? "ll-interactive min-h-10 rounded-full bg-[#20281f] px-4 text-xs font-black text-white shadow-sm hover:bg-[#111811] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
+                  : "ll-interactive min-h-10 rounded-full border border-[#f0d7ad] bg-[#f5ecd8] px-4 text-xs font-black text-[#5b4b32] hover:bg-[#ffe7ad] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
               }
             >
               {option.label}

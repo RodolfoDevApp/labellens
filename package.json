@@ -18,7 +18,12 @@
     "compose:up": "docker compose -f infra/compose/docker-compose.yml up -d",
     "compose:down": "docker compose -f infra/compose/docker-compose.yml down",
     "compose:ps": "docker compose -f infra/compose/docker-compose.yml ps",
-    "export": "powershell -ExecutionPolicy Bypass -File scripts/export-repo.ps1"
+    "export": "powershell -ExecutionPolicy Bypass -File scripts/export-repo.ps1",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:api": "npm run dev -w apps/api",
+    "build:domain": "npm run build -w @labellens/domain",
+    "build:api": "npm run build -w @labellens/api",
+    "build:web": "npm run build -w web"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

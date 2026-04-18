@@ -1,8 +1,8 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f3ead7;
+  --foreground: #18261e;
 }
 
 @theme inline {
@@ -12,21 +12,18 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 html {
   scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at top left, rgba(255, 224, 145, 0.32), transparent 34rem),
+    radial-gradient(circle at top right, rgba(185, 220, 124, 0.24), transparent 30rem),
+    var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
 button:not(:disabled),
@@ -53,6 +50,22 @@ a {
     box-shadow 180ms ease-out,
     transform 180ms ease-out,
     opacity 180ms ease-out;
+}
+
+
+.ll-app-bg {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(255, 214, 122, 0.28), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(187, 222, 134, 0.22), transparent 30rem),
+    linear-gradient(180deg, #f7edda 0%, #f3ead7 48%, #efe3c8 100%);
+}
+
+.ll-surface {
+  background: #fff8ea;
+}
+
+.ll-surface-soft {
+  background: #fff1d1;
 }
 
 .ll-line-clamp-2 {
@@ -90,9 +103,9 @@ a {
 .ll-card:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 14px 35px rgba(15, 23, 42, 0.08),
-    0 2px 8px rgba(15, 23, 42, 0.05);
-  border-color: rgba(16, 185, 129, 0.28);
+    0 18px 45px rgba(88, 61, 24, 0.12),
+    0 2px 8px rgba(88, 61, 24, 0.05);
+  border-color: rgba(240, 183, 88, 0.55);
 }
 
 .ll-row-in {

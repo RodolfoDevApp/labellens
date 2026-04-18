@@ -1,5 +1,6 @@
-﻿export * from "./nutrition/nutrition-facts.js";
+export * from "./nutrition/nutrition-facts.js";
 export * from "./nutrition/calculate-nutrition.js";
+export * from "./nutrition/calculate-menu-totals.js";
 
 export * from "./food/food-item.js";
 export * from "./product/product-item.js";

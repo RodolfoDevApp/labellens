@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { type FormEvent } from "react";
 
@@ -11,6 +11,15 @@ type FoodSearchFormProps = {
 };
 
 const quickSearches = ["Oats", "Yogurt", "Milk", "Chicken"];
+
+function SearchIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m16.5 16.5 4 4" />
+    </svg>
+  );
+}
 
 export function FoodSearchForm({
   query,
@@ -30,20 +39,20 @@ export function FoodSearchForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="ll-pop-in rounded-[2rem] bg-white p-4 shadow-sm ring-1 ring-slate-200">
+    <form onSubmit={handleSubmit} className="ll-pop-in rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-4 shadow-[0_18px_45px_rgba(88,61,24,0.10)]">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+        <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
           USDA FoodData Central
         </p>
-        <h1 className="mt-1 text-2xl font-black leading-tight">Food search</h1>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
+        <h1 className="mt-1 text-2xl font-black leading-tight text-[#18261e]">Food search</h1>
+        <p className="mt-1 text-sm leading-6 text-[#5d665d]">
           Search in English. Pick the meal inside each result row.
         </p>
       </div>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_140px]">
+      <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
         <div>
-          <label htmlFor="food-search" className="text-sm font-black">
+          <label htmlFor="food-search" className="text-sm font-black text-[#18261e]">
             Food name
           </label>
 
@@ -54,7 +63,7 @@ export function FoodSearchForm({
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
               placeholder="Oats, yogurt, milk..."
-              className="min-h-14 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 pr-12 text-base outline-none hover:border-emerald-200 hover:bg-white focus:border-emerald-600 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+              className="min-h-14 w-full rounded-2xl border border-[#f0d7ad] bg-[#f5ecd8] px-4 pr-12 text-base text-[#18261e] outline-none hover:border-[#d8e7bd] hover:bg-[#fffaf2] focus:border-[#0b7a53] focus:bg-[#fffaf2] focus:ring-2 focus:ring-[#c9f0a0]"
             />
 
             {query.length > 0 && (
@@ -62,7 +71,7 @@ export function FoodSearchForm({
                 type="button"
                 onClick={onReset}
                 aria-label="Clear search"
-                className="ll-interactive absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-white text-sm font-black text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                className="ll-interactive absolute right-3 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#f0d7ad] bg-[#fff8ea] text-sm font-black text-[#6b5430] hover:bg-[#ffe7ad] hover:text-[#18261e] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
               >
                 ×
               </button>
@@ -72,21 +81,22 @@ export function FoodSearchForm({
 
         <button
           type="submit"
-          className="ll-interactive min-h-14 self-end rounded-2xl bg-emerald-700 px-5 text-base font-black text-white shadow-sm hover:bg-emerald-800 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          className="ll-interactive flex min-h-14 items-center justify-center gap-2 self-end rounded-2xl bg-[#0b7a53] px-5 text-base font-black text-white shadow-[0_10px_24px_rgba(11,122,83,0.24)] hover:bg-[#075f41] hover:shadow-[0_14px_28px_rgba(11,122,83,0.28)] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
         >
+          <SearchIcon />
           {status === "loading" ? "Searching..." : "Search"}
         </button>
       </div>
 
       <div className="mt-4">
-        <p className="text-xs font-bold text-slate-500">Quick searches</p>
+        <p className="text-xs font-black text-[#6b756c]">Quick searches</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {quickSearches.map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => void handleQuickSearch(item)}
-              className="ll-interactive min-h-11 rounded-full bg-emerald-50 px-4 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100 hover:bg-emerald-100 hover:ring-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              className="ll-interactive min-h-11 rounded-full border border-[#c9e9b5] bg-[#edfbdf] px-4 text-xs font-black text-[#0b6b47] hover:bg-[#dff6c8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a]"
             >
               {item}
             </button>

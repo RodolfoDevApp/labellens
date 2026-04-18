@@ -1,11 +1,11 @@
-﻿import { type FoodItemDto } from "@/shared/api/foods-api";
+import { type FoodItemDto } from "@/shared/api/foods-api";
 import { type MealKey } from "../hooks/useFoodSearch";
 import { FoodResultCard } from "./FoodResultCard";
 
 type FoodResultsListProps = {
   items: FoodItemDto[];
   defaultMeal: MealKey;
-  onAddToMenu: (food: FoodItemDto, meal: MealKey) => void;
+  onAddToMenu: (food: FoodItemDto, meal: MealKey, grams: number) => void;
 };
 
 export function FoodResultsList({

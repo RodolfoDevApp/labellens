@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
-import { type FoodItemDto, searchFoods } from "@/shared/api/foods-api";
+import { type FoodItemDto, type MenuTotalsDto, searchFoods } from "@/shared/api/foods-api";
 
 type SearchStatus = "idle" | "loading" | "success" | "empty" | "error";
 
@@ -23,10 +23,19 @@ export const mealOptions: Array<{ key: MealKey; label: string }> = [
 ];
 
 const PAGE_SIZE = 10;
-const DEFAULT_GRAMS = 100;
+const DEFAULT_GRAMS = 40;
+const GRAM_STEP = 10;
 
-function calculateMacro(valuePer100g: number | null, grams: number): number | null {
-  if (valuePer100g === null) {
+function sanitizeGrams(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_GRAMS;
+  }
+
+  return Math.min(10000, Math.max(1, Math.round(value)));
+}
+
+function calculateMacro(valuePer100g: number | null | undefined, grams: number): number | null {
+  if (valuePer100g === null || valuePer100g === undefined) {
     return null;
   }
 
@@ -146,7 +155,9 @@ export function useFoodSearch() {
     setSortBy("relevance");
   }
 
-  function addToMenu(food: FoodItemDto, meal: MealKey) {
+  function addToMenu(food: FoodItemDto, meal: MealKey, grams = DEFAULT_GRAMS) {
+    const nextGrams = sanitizeGrams(grams);
+
     setMenuItems((currentItems) => {
       const existingItem = currentItems.find(
         (item) => item.food.id === food.id && item.meal === meal,
@@ -155,7 +166,7 @@ export function useFoodSearch() {
       if (existingItem) {
         return currentItems.map((item) =>
           item.id === existingItem.id
-            ? { ...item, grams: item.grams + DEFAULT_GRAMS }
+            ? { ...item, grams: sanitizeGrams(item.grams + nextGrams) }
             : item,
         );
       }
@@ -166,13 +177,13 @@ export function useFoodSearch() {
           id: `${meal}-${food.id}`,
           meal,
           food,
-          grams: DEFAULT_GRAMS,
+          grams: nextGrams,
         },
       ];
     });
 
     const mealLabel = mealOptions.find((option) => option.key === meal)?.label ?? "Meal";
-    setLastAddedLabel(`Added 100 g to ${mealLabel}`);
+    setLastAddedLabel(`Added ${nextGrams} g to ${mealLabel}`);
   }
 
   function clearLastAddedLabel() {
@@ -182,7 +193,7 @@ export function useFoodSearch() {
   function increaseMenuItem(itemId: string) {
     setMenuItems((currentItems) =>
       currentItems.map((item) =>
-        item.id === itemId ? { ...item, grams: item.grams + DEFAULT_GRAMS } : item,
+        item.id === itemId ? { ...item, grams: sanitizeGrams(item.grams + GRAM_STEP) } : item,
       ),
     );
   }
@@ -194,14 +205,22 @@ export function useFoodSearch() {
           return [item];
         }
 
-        const nextGrams = item.grams - DEFAULT_GRAMS;
+        const nextGrams = item.grams - GRAM_STEP;
 
         if (nextGrams <= 0) {
           return [];
         }
 
-        return [{ ...item, grams: nextGrams }];
+        return [{ ...item, grams: sanitizeGrams(nextGrams) }];
       }),
+    );
+  }
+
+  function updateMenuItemGrams(itemId: string, grams: number) {
+    setMenuItems((currentItems) =>
+      currentItems.map((item) =>
+        item.id === itemId ? { ...item, grams: sanitizeGrams(grams) } : item,
+      ),
     );
   }
 
@@ -226,28 +245,51 @@ export function useFoodSearch() {
     );
   }, [items, sortBy]);
 
-  const menuTotals = useMemo(() => {
+  const menuTotals = useMemo<MenuTotalsDto>(() => {
+    const energyKcal = sumNullable(
+      menuItems.map((item) =>
+        calculateMacro(item.food.nutrition.energyKcalPer100g, item.grams),
+      ),
+    );
+    const proteinG = sumNullable(
+      menuItems.map((item) =>
+        calculateMacro(item.food.nutrition.proteinGPer100g, item.grams),
+      ),
+    );
+    const carbsG = sumNullable(
+      menuItems.map((item) =>
+        calculateMacro(item.food.nutrition.carbsGPer100g, item.grams),
+      ),
+    );
+    const fatG = sumNullable(
+      menuItems.map((item) =>
+        calculateMacro(item.food.nutrition.fatGPer100g, item.grams),
+      ),
+    );
+
     return {
-      energyKcal: sumNullable(
+      energyKcal,
+      proteinG,
+      carbsG,
+      fatG,
+      sugarG: sumNullable(
         menuItems.map((item) =>
-          calculateMacro(item.food.nutrition.energyKcalPer100g, item.grams),
+          calculateMacro(item.food.nutrition.sugarGPer100g, item.grams),
         ),
       ),
-      proteinG: sumNullable(
+      fiberG: sumNullable(
         menuItems.map((item) =>
-          calculateMacro(item.food.nutrition.proteinGPer100g, item.grams),
+          calculateMacro(item.food.nutrition.fiberGPer100g, item.grams),
         ),
       ),
-      carbsG: sumNullable(
+      sodiumMg: sumNullable(
         menuItems.map((item) =>
-          calculateMacro(item.food.nutrition.carbsGPer100g, item.grams),
+          calculateMacro(item.food.nutrition.sodiumMgPer100g, item.grams),
         ),
       ),
-      fatG: sumNullable(
-        menuItems.map((item) =>
-          calculateMacro(item.food.nutrition.fatGPer100g, item.grams),
-        ),
-      ),
+      partialData:
+        menuItems.some((item) => item.food.nutrition.completeness !== "COMPLETE") ||
+        [energyKcal, proteinG, carbsG, fatG].some((value) => value === null),
     };
   }, [menuItems]);
 
@@ -277,6 +319,7 @@ export function useFoodSearch() {
     addToMenu,
     increaseMenuItem,
     decreaseMenuItem,
+    updateMenuItemGrams,
     removeFromMenu,
     clearMenu,
   };

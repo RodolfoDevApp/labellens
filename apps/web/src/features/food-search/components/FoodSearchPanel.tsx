@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FoodSearchForm } from "./FoodSearchForm";
 import { FoodResultsList } from "./FoodResultsList";
@@ -33,6 +33,7 @@ export function FoodSearchPanel() {
     addToMenu,
     increaseMenuItem,
     decreaseMenuItem,
+    updateMenuItemGrams,
     removeFromMenu,
     clearMenu,
   } = useFoodSearch();
@@ -56,29 +57,29 @@ export function FoodSearchPanel() {
 
       <section className="min-w-0">
         {status === "idle" && (
-          <div className="rounded-3xl bg-emerald-950 p-5 text-white">
+          <div className="rounded-3xl bg-[#20281f] p-5 text-[#fff8e8] shadow-[0_14px_35px_rgba(32,40,31,0.18)]">
             <p className="text-base font-black">Start with a simple food.</p>
-            <p className="mt-2 text-sm leading-6 text-emerald-50">
+            <p className="mt-2 text-sm leading-6 text-[#efe3ca]">
               Try oats, milk, yogurt or chicken. Results will appear here.
             </p>
           </div>
         )}
 
         {status === "loading" && (
-          <div className="rounded-3xl bg-white p-5 text-sm font-bold text-slate-600 ring-1 ring-slate-200">
+          <div className="rounded-3xl border border-[#f0d7ad] bg-[#fff8ea] p-5 text-sm font-bold text-[#5d665d] shadow-sm">
             Searching foods...
           </div>
         )}
 
         {status === "error" && (
-          <div className="rounded-3xl bg-red-50 p-5 text-sm font-bold text-red-700 ring-1 ring-red-100">
+          <div className="rounded-3xl border border-[#f0d2c7] bg-[#fff0ea] p-5 text-sm font-bold text-[#9b392f]">
             Could not connect to the local API. Make sure apps/api is running on port 4000.
             {errorMessage ? <p className="mt-2 text-xs">{errorMessage}</p> : null}
           </div>
         )}
 
         {status === "empty" && (
-          <div className="rounded-3xl bg-amber-50 p-5 text-sm font-bold text-amber-700 ring-1 ring-amber-100">
+          <div className="rounded-3xl border border-[#f5d27a] bg-[#fff0b8] p-5 text-sm font-bold text-[#664b00]">
             No results found. Try oats, milk, yogurt or chicken.
           </div>
         )}
@@ -87,16 +88,16 @@ export function FoodSearchPanel() {
           <>
             <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
                   Results
                 </p>
-                <h2 className="text-2xl font-black leading-tight">
+                <h2 className="text-2xl font-black leading-tight text-[#18261e]">
                   {visibleItems.length} of {items.length} foods for “{searchedQuery}”
                 </h2>
               </div>
 
-              <p className="text-xs font-bold text-slate-500">
-                Nutrition per 100 g
+              <p className="text-xs font-bold text-[#6b756c]">
+                Preview updates with grams
               </p>
             </div>
 
@@ -116,12 +117,12 @@ export function FoodSearchPanel() {
                 <button
                   type="button"
                   onClick={() => void loadMore()}
-                  className="min-h-12 rounded-2xl bg-slate-950 px-6 text-sm font-black text-white"
+                  className="ll-interactive min-h-12 rounded-2xl bg-[#20281f] px-6 text-sm font-black text-white shadow-[0_12px_28px_rgba(32,40,31,0.18)] hover:bg-[#111811] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
                 >
                   {isLoadingMore ? "Loading..." : "Load more results"}
                 </button>
               ) : (
-                <p className="rounded-full bg-slate-100 px-4 py-2 text-xs font-bold text-slate-500">
+                <p className="rounded-full border border-[#f0d7ad] bg-[#ffe7ad] px-4 py-2 text-xs font-bold text-[#6b5430]">
                   End of current results
                 </p>
               )}
@@ -149,6 +150,7 @@ export function FoodSearchPanel() {
         onClose={() => setIsMenuOpen(false)}
         onIncrease={increaseMenuItem}
         onDecrease={decreaseMenuItem}
+        onUpdateGrams={updateMenuItemGrams}
         onRemove={removeFromMenu}
         onClear={clearMenu}
       />

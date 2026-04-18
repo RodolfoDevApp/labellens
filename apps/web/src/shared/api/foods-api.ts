@@ -1,4 +1,4 @@
-﻿export type NutritionFactsDto = {
+export type NutritionFactsDto = {
   energyKcalPer100g: number | null;
   proteinGPer100g: number | null;
   carbsGPer100g: number | null;
@@ -30,8 +30,54 @@ export type FoodSearchResponseDto = {
   page: number;
 };
 
+export type FoodDetailResponseDto = {
+  food: FoodItemDto;
+  nutritionFacts: NutritionFactsDto;
+  source: "USDA";
+  sourceMode: "live" | "fixture";
+};
+
+export type MenuTotalsDto = {
+  energyKcal: number | null;
+  proteinG: number | null;
+  carbsG: number | null;
+  fatG: number | null;
+  sugarG?: number | null;
+  fiberG?: number | null;
+  sodiumMg?: number | null;
+  partialData: boolean;
+};
+
+export type MenuCalculationItemDto = {
+  id: string;
+  source: "USDA" | "OPEN_FOOD_FACTS" | "CUSTOM_RECIPE";
+  sourceId: string;
+  displayName: string;
+  grams: number;
+  nutrition: NutritionFactsDto;
+};
+
+export type MenuCalculationResponseDto = {
+  totals: MenuTotalsDto;
+  partialData: boolean;
+  warnings: Array<{
+    code: string;
+    message: string;
+    itemId?: string;
+  }>;
+};
+
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000";
+
+async function parseJsonResponse<T>(response: Response, fallbackMessage: string): Promise<T> {
+  if (!response.ok) {
+    const details = await response.json().catch(() => null) as { detail?: string } | null;
+    throw new Error(details?.detail ?? `${fallbackMessage} with status ${response.status}`);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 export async function searchFoods(
   query: string,
@@ -43,9 +89,25 @@ export async function searchFoods(
 
   const response = await fetch(url);
 
-  if (!response.ok) {
-    throw new Error(`Food search failed with status ${response.status}`);
-  }
+  return parseJsonResponse<FoodSearchResponseDto>(response, "Food search failed");
+}
 
-  return response.json() as Promise<FoodSearchResponseDto>;
+export async function getFoodById(fdcId: string): Promise<FoodDetailResponseDto> {
+  const response = await fetch(new URL(`/api/v1/foods/${fdcId}`, API_BASE_URL));
+
+  return parseJsonResponse<FoodDetailResponseDto>(response, "Food detail failed");
+}
+
+export async function calculateMenu(
+  items: MenuCalculationItemDto[],
+): Promise<MenuCalculationResponseDto> {
+  const response = await fetch(new URL("/api/v1/menus/calculate", API_BASE_URL), {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ items }),
+  });
+
+  return parseJsonResponse<MenuCalculationResponseDto>(response, "Menu calculation failed");
 }

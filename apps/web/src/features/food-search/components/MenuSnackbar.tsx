@@ -43,7 +43,7 @@ export function MenuSnackbar({
         <button
           type="button"
           onClick={onViewMenu}
-          className="ll-interactive min-h-10 shrink-0 rounded-xl bg-white px-4 text-xs font-black text-emerald-800 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-white/80 sm:text-sm"
+          className="ll-interactive min-h-10 shrink-0 rounded-xl bg-[#fff8ea] px-4 text-xs font-black text-emerald-800 shadow-sm hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-[#fff8ea]/80 sm:text-sm"
         >
           View menu
         </button>
