@@ -1,6 +1,10 @@
 ﻿import type { FoodItem } from "@labellens/domain";
 
-export const foodFixtures: FoodItem[] = [
+export type FoodFixture = FoodItem & {
+  searchAliases: string[];
+};
+
+export const foodFixtures: FoodFixture[] = [
   {
     id: "USDA-168874",
     name: "Oats, raw",
@@ -8,6 +12,7 @@ export const foodFixtures: FoodItem[] = [
     dataType: "Foundation",
     servingSize: 100,
     servingSizeUnit: "g",
+    searchAliases: ["oats", "oat", "avena", "hojuelas de avena", "avena cruda"],
     nutrition: {
       energyKcalPer100g: 389,
       proteinGPer100g: 16.89,
@@ -29,6 +34,7 @@ export const foodFixtures: FoodItem[] = [
     dataType: "Survey",
     servingSize: 100,
     servingSizeUnit: "g",
+    searchAliases: ["greek yogurt", "yogurt", "yogur", "yogurt griego", "yogur griego"],
     nutrition: {
       energyKcalPer100g: 59,
       proteinGPer100g: 10.19,
@@ -39,6 +45,28 @@ export const foodFixtures: FoodItem[] = [
       sodiumMgPer100g: 36,
       source: "USDA",
       sourceId: "170887",
+      lastFetchedAt: "2026-04-18T00:00:00.000Z",
+      completeness: "COMPLETE"
+    }
+  },
+  {
+    id: "USDA-173944",
+    name: "Milk, whole, 3.25% milkfat",
+    brandName: null,
+    dataType: "Survey",
+    servingSize: 100,
+    servingSizeUnit: "g",
+    searchAliases: ["milk", "leche", "leche entera"],
+    nutrition: {
+      energyKcalPer100g: 61,
+      proteinGPer100g: 3.15,
+      carbsGPer100g: 4.8,
+      fatGPer100g: 3.25,
+      sugarGPer100g: 5.05,
+      fiberGPer100g: 0,
+      sodiumMgPer100g: 43,
+      source: "USDA",
+      sourceId: "173944",
       lastFetchedAt: "2026-04-18T00:00:00.000Z",
       completeness: "COMPLETE"
     }

@@ -1,4 +1,9 @@
-﻿const quickSearches = ["Avena", "Yogurt", "Cereal", "Leche"];
+﻿"use client";
+
+import { FormEvent, useState } from "react";
+import { FoodItemDto, searchFoods } from "@/shared/api/foods-api";
+
+const quickSearches = ["Avena", "Yogur", "Cereal", "Leche"];
 
 const features = [
   {
@@ -15,30 +20,116 @@ const features = [
   },
 ];
 
+function FoodResultCard({ food }: { food: FoodItemDto }) {
+  return (
+    <article className="rounded-3xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-base font-black">{food.name}</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Fuente {food.nutrition.source} · {food.nutrition.completeness.toLowerCase()}
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+          {food.dataType ?? "food"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid grid-cols-4 gap-2 text-center">
+        <div className="rounded-2xl bg-slate-50 p-2">
+          <p className="text-sm font-black">{food.nutrition.energyKcalPer100g ?? "—"}</p>
+          <p className="text-[10px] text-slate-500">kcal</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-2">
+          <p className="text-sm font-black">{food.nutrition.proteinGPer100g ?? "—"}g</p>
+          <p className="text-[10px] text-slate-500">Prot</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-2">
+          <p className="text-sm font-black">{food.nutrition.carbsGPer100g ?? "—"}g</p>
+          <p className="text-[10px] text-slate-500">Carb</p>
+        </div>
+        <div className="rounded-2xl bg-slate-50 p-2">
+          <p className="text-sm font-black">{food.nutrition.fatGPer100g ?? "—"}g</p>
+          <p className="text-[10px] text-slate-500">Grasa</p>
+        </div>
+      </div>
+
+      <button className="mt-4 min-h-12 w-full rounded-2xl bg-emerald-600 text-sm font-black text-white">
+        Agregar 40 g
+      </button>
+    </article>
+  );
+}
+
 function DemoCard() {
+  const [query, setQuery] = useState("oats");
+  const [items, setItems] = useState<FoodItemDto[]>([]);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "empty" | "error">(
+    "idle",
+  );
+
+  async function runSearch(nextQuery = query) {
+    const trimmed = nextQuery.trim();
+
+    if (trimmed.length < 2) {
+      setStatus("empty");
+      setItems([]);
+      return;
+    }
+
+    setStatus("loading");
+
+    try {
+      const result = await searchFoods(trimmed);
+      setItems(result.items);
+      setStatus(result.items.length > 0 ? "success" : "empty");
+    } catch {
+      setStatus("error");
+      setItems([]);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await runSearch();
+  }
+
+  async function handleQuickSearch(value: string) {
+    setQuery(value);
+    await runSearch(value);
+  }
+
   return (
     <section className="w-full rounded-[1.75rem] bg-white p-4 shadow-sm ring-1 ring-slate-200">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold text-emerald-700">LabelLens</p>
-          <p className="text-base font-black">Busca o escanea</p>
+          <p className="text-base font-black">Busca alimentos reales</p>
         </div>
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-900 text-sm font-black text-white">
           LL
         </div>
       </div>
 
-      <div className="mt-4 rounded-3xl bg-slate-50 p-3">
-        <label className="text-sm font-black">Alimento o producto</label>
+      <form onSubmit={handleSubmit} className="mt-4 rounded-3xl bg-slate-50 p-3">
+        <label htmlFor="food-search" className="text-sm font-black">
+          Alimento
+        </label>
 
         <div className="mt-3 grid gap-2 min-[420px]:grid-cols-[1fr_auto]">
           <input
+            id="food-search"
             type="search"
-            placeholder="Avena, yogurt..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Oats, yogurt..."
             className="min-h-12 min-w-0 rounded-2xl border border-slate-200 bg-white px-4 text-sm outline-none"
           />
-          <button className="min-h-12 rounded-2xl bg-emerald-700 px-5 text-sm font-black text-white">
-            Buscar
+          <button
+            type="submit"
+            className="min-h-12 rounded-2xl bg-emerald-700 px-5 text-sm font-black text-white"
+          >
+            {status === "loading" ? "Buscando" : "Buscar"}
           </button>
         </div>
 
@@ -46,43 +137,47 @@ function DemoCard() {
           {quickSearches.map((item) => (
             <button
               key={item}
+              type="button"
+              onClick={() => void handleQuickSearch(item)}
               className="min-h-11 rounded-full bg-emerald-50 px-4 text-xs font-bold text-emerald-800 ring-1 ring-emerald-100"
             >
               {item}
             </button>
           ))}
         </div>
-      </div>
+      </form>
 
-      <div className="mt-4 rounded-3xl bg-slate-50 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-black">Desayuno temporal</p>
-            <p className="text-xs text-slate-500">Agrega gramos y mira el total.</p>
+      <div className="mt-4 space-y-3">
+        {status === "idle" && (
+          <div className="rounded-3xl bg-emerald-950 p-4 text-white">
+            <p className="text-sm font-black">Prueba con “oats” o “yogurt”.</p>
+            <p className="mt-1 text-xs text-emerald-50">
+              Por ahora usamos fixtures locales. Después conectamos USDA real.
+            </p>
           </div>
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700">
-            parcial
-          </span>
-        </div>
+        )}
 
-        <div className="mt-4 flex items-center justify-between rounded-2xl bg-white p-3">
-          <span className="text-sm font-bold">Avena</span>
-          <span className="text-sm font-black">40 g</span>
-        </div>
+        {status === "loading" && (
+          <div className="rounded-3xl bg-white p-4 text-sm font-bold text-slate-600 ring-1 ring-slate-200">
+            Buscando alimentos...
+          </div>
+        )}
 
-        <div className="mt-3 grid grid-cols-4 gap-2 text-center">
-          {[
-            ["156", "kcal"],
-            ["5g", "Prot"],
-            ["26g", "Carb"],
-            ["3g", "Grasa"],
-          ].map(([value, label]) => (
-            <div key={label} className="min-w-0 rounded-2xl bg-white p-2">
-              <p className="text-sm font-black min-[420px]:text-base">{value}</p>
-              <p className="text-[10px] text-slate-500">{label}</p>
-            </div>
-          ))}
-        </div>
+        {status === "error" && (
+          <div className="rounded-3xl bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-100">
+            No se pudo conectar con la API local. Revisa que apps/api esté corriendo en el puerto 4000.
+          </div>
+        )}
+
+        {status === "empty" && (
+          <div className="rounded-3xl bg-amber-50 p-4 text-sm font-bold text-amber-700 ring-1 ring-amber-100">
+            No encontramos resultados. Prueba con oats o yogurt.
+          </div>
+        )}
+
+        {items.map((food) => (
+          <FoodResultCard key={food.id} food={food} />
+        ))}
       </div>
 
       <button className="mt-4 min-h-14 w-full rounded-2xl bg-emerald-400 text-base font-black text-slate-950 shadow-sm">
@@ -172,7 +267,7 @@ export default function Home() {
           </div>
 
           <div className="hidden lg:block">
-            <div className="mx-auto w-full max-w-[390px] rounded-[2.4rem] bg-slate-950 p-3 shadow-2xl">
+            <div className="mx-auto w-full max-w-[430px] rounded-[2.4rem] bg-slate-950 p-3 shadow-2xl">
               <div className="overflow-hidden rounded-[2rem] bg-[#f7faf8]">
                 <div className="px-4 py-4">
                   <DemoCard />
@@ -208,3 +303,4 @@ export default function Home() {
     </main>
   );
 }
+
