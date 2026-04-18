@@ -16,8 +16,7 @@ Next.js PWA
 - `apps/api/src/foods`: USDA search/detail, fixture fallback, normalizer and cache-aside interface.
 - `apps/api/src/menus`: menu total calculation API wrapper.
 - `packages/domain`: source contracts and pure nutrition math.
-- `apps/web/src/features/food-search`: mobile search, result cards, gram input and temporary menu drawer.
-- `apps/web/src/features/food-detail`: food detail and gram calculator.
+- `apps/web/src/features/food-search`: mobile search, result cards, nutrition/source modal, gram input and temporary menu drawer.
 
 ## Current deliberate compromise
 
@@ -35,6 +34,8 @@ Every external item keeps:
 The UI must surface partial data instead of inventing nutrition facts.
 
 ## Handler rules
+
+`apps/api/src/app.ts` owns the Hono routes so tests can call `app.request(...)` without starting a server. `apps/api/src/server.ts` only starts the local HTTP listener.
 
 API route code should remain thin:
 

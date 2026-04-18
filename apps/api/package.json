@@ -9,7 +9,7 @@
     "build": "tsc -p ../../packages/domain/tsconfig.json && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "lint": "eslint src",
-    "test": "vitest run"
+    "test": "tsc -p ../../packages/domain/tsconfig.json && vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.6",

@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 node_modules/
 .pnpm-store/
 .yarn/
@@ -19,6 +19,7 @@ coverage/
 .sass-cache/
 .eslintcache
 .tsbuildinfo
+*.tsbuildinfo
 
 # env
 .env
