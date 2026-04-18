@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { z } from "zod";
+import { appConfig } from "./config/app-config.js";
 import { searchFoods } from "./foods/food-service.js";
 import { problemDetails } from "./shared/problem-details.js";
 
@@ -38,11 +39,12 @@ app.get("/api/v1/health", (c) => {
   return c.json({
     status: "ok",
     service: "labellens-api",
-    time: new Date().toISOString()
+    time: new Date().toISOString(),
+    usdaMode: appConfig.usdaApiKey ? "live" : "fixture"
   });
 });
 
-app.get("/api/v1/foods/search", (c) => {
+app.get("/api/v1/foods/search", async (c) => {
   const correlationId = c.get("correlationId");
 
   const querySchema = z.object({
@@ -69,20 +71,31 @@ app.get("/api/v1/foods/search", (c) => {
     );
   }
 
-  const result = searchFoods(parsed.data.q);
+  try {
+    const result = await searchFoods(parsed.data.q, parsed.data.page);
 
-  return c.json({
-    ...result,
-    page: parsed.data.page
-  });
+    return c.json({
+      ...result,
+      page: parsed.data.page
+    });
+  } catch (error) {
+    return c.json(
+      problemDetails({
+        title: "USDA unavailable",
+        status: 503,
+        detail: error instanceof Error ? error.message : "Food data provider failed.",
+        code: "foods.search.provider_unavailable",
+        correlationId
+      }),
+      503,
+    );
+  }
 });
-
-const port = Number(process.env.PORT ?? 4000);
 
 serve(
   {
     fetch: app.fetch,
-    port
+    port: appConfig.port
   },
   (info) => {
     console.log(`LabelLens API running at http://localhost:${info.port}`);
