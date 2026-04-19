@@ -10,9 +10,17 @@ function SearchIcon() {
   );
 }
 
+function BarcodeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+      <path d="M4 5v14M7 5v14M11 5v14M14 5v14M18 5v14M20 5v14" />
+    </svg>
+  );
+}
+
 const miniCards = [
   { icon: "🔎", title: "Find", text: "real foods" },
-  { icon: "🥣", title: "Add", text: "to meals" },
+  { icon: "🏷️", title: "Scan", text: "barcodes" },
   { icon: "📊", title: "Track", text: "daily totals" },
 ];
 
@@ -29,17 +37,24 @@ export function LandingHero() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-base leading-7 text-[#5d665d] sm:text-lg sm:leading-8">
-          Search foods, compare nutrition per 100 g, and build a daily menu by meal.
-          Useful when you care about calories, protein, carbs and fat without fighting spreadsheets.
+          Search foods, scan packaged products, compare nutrition per 100 g,
+          and build a daily menu by meal without fighting spreadsheets.
         </p>
 
-        <div className="mt-8 w-full max-w-xl">
+        <div className="mt-8 grid w-full max-w-xl gap-3 sm:grid-cols-2">
           <Link
             href="/search"
             className="ll-interactive flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#0b7a53] px-6 text-base font-black text-white shadow-[0_14px_30px_rgba(11,122,83,0.25)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
           >
             <SearchIcon />
-            Try food search
+            Search foods
+          </Link>
+          <Link
+            href="/scan"
+            className="ll-interactive flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl bg-[#ffe7ad] px-6 text-base font-black text-[#18261e] shadow-[0_14px_30px_rgba(88,61,24,0.12)] ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
+          >
+            <BarcodeIcon />
+            Scan label
           </Link>
         </div>
 

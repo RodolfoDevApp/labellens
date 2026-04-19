@@ -22,6 +22,19 @@ export type FoodItemDto = {
   nutrition: NutritionFactsDto;
 };
 
+export type ProductItemDto = {
+  barcode: string;
+  name: string;
+  brand?: string | null;
+  imageUrl?: string | null;
+  ingredientsText?: string | null;
+  allergens: string[];
+  additives: string[];
+  novaGroup?: number | null;
+  nutriScore?: string | null;
+  nutrition: NutritionFactsDto;
+};
+
 export type FoodSearchResponseDto = {
   items: FoodItemDto[];
   source: "USDA";
@@ -35,6 +48,19 @@ export type FoodDetailResponseDto = {
   nutritionFacts: NutritionFactsDto;
   source: "USDA";
   sourceMode: "live" | "fixture";
+};
+
+export type ProductLookupResponseDto = {
+  product: ProductItemDto;
+  source: "OPEN_FOOD_FACTS";
+  sourceMode: "live" | "fixture";
+};
+
+export type ProductSearchResponseDto = {
+  items: ProductItemDto[];
+  source: "OPEN_FOOD_FACTS";
+  sourceMode: "live" | "fixture";
+  queryUsed: string;
 };
 
 export type MenuTotalsDto = {
@@ -96,6 +122,21 @@ export async function getFoodById(fdcId: string): Promise<FoodDetailResponseDto>
   const response = await fetch(new URL(`/api/v1/foods/${fdcId}`, API_BASE_URL));
 
   return parseJsonResponse<FoodDetailResponseDto>(response, "Food detail failed");
+}
+
+export async function lookupProductBarcode(barcode: string): Promise<ProductLookupResponseDto> {
+  const response = await fetch(new URL(`/api/v1/products/barcode/${barcode}`, API_BASE_URL));
+
+  return parseJsonResponse<ProductLookupResponseDto>(response, "Product lookup failed");
+}
+
+export async function searchProducts(query: string): Promise<ProductSearchResponseDto> {
+  const url = new URL("/api/v1/products/search", API_BASE_URL);
+  url.searchParams.set("q", query);
+
+  const response = await fetch(url);
+
+  return parseJsonResponse<ProductSearchResponseDto>(response, "Product search failed");
 }
 
 export async function calculateMenu(

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FoodSearchPanel } from "@/features/food-search/components/FoodSearchPanel";
+import { ScannerPanel } from "@/features/scanner/components/ScannerPanel";
 
 function HomeIcon() {
   return (
@@ -11,15 +11,16 @@ function HomeIcon() {
   );
 }
 
-function BarcodeIcon() {
+function SearchIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
-      <path d="M4 5v14M7 5v14M11 5v14M14 5v14M18 5v14M20 5v14" />
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m16.5 16.5 4 4" />
     </svg>
   );
 }
 
-export default function SearchPage() {
+export default function ScanPage() {
   return (
     <main className="min-h-dvh ll-app-bg text-[#18261e]">
       <section className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-10">
@@ -33,11 +34,11 @@ export default function SearchPage() {
 
           <div className="flex gap-2">
             <Link
-              href="/scan"
+              href="/search"
               className="ll-interactive flex min-h-11 items-center gap-2 rounded-full bg-[#edfbdf] px-4 text-sm font-black text-[#0b6b47] shadow-sm ring-1 ring-[#c9e9b5] hover:bg-[#dff6c8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a]"
             >
-              <BarcodeIcon />
-              Scan
+              <SearchIcon />
+              Search
             </Link>
             <Link
               href="/"
@@ -50,7 +51,7 @@ export default function SearchPage() {
         </header>
 
         <div className="mt-6 flex-1">
-          <FoodSearchPanel />
+          <ScannerPanel />
         </div>
       </section>
     </main>

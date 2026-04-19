@@ -48,6 +48,38 @@ describe("LabelLens API", () => {
     expect(response.headers.get("x-correlation-id")).toBeTruthy();
   });
 
+  it("looks up fixture Open Food Facts products by barcode", async () => {
+    const response = await app.request("/api/v1/products/barcode/3017624010701");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      source: "OPEN_FOOD_FACTS",
+      sourceMode: "fixture",
+      product: {
+        barcode: "3017624010701",
+        name: "Nutella",
+        brand: "Ferrero",
+        nutrition: {
+          source: "OPEN_FOOD_FACTS",
+          sourceId: "3017624010701",
+          completeness: "PARTIAL",
+        },
+      },
+    });
+  });
+
+  it("treats missing barcodes as useful product.not_found state", async () => {
+    const response = await app.request("/api/v1/products/barcode/1234567890123");
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(body).toMatchObject({
+      status: 404,
+      code: "product.not_found",
+    });
+  });
+
   it("calculates menu totals from source data and grams", async () => {
     const response = await app.request("/api/v1/menus/calculate", {
       method: "POST",

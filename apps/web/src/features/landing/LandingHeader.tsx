@@ -19,6 +19,14 @@ function SearchIcon() {
   );
 }
 
+function BarcodeIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round">
+      <path d="M4 5v14M7 5v14M11 5v14M14 5v14M18 5v14M20 5v14" />
+    </svg>
+  );
+}
+
 export function LandingHeader() {
   return (
     <header className="flex min-w-0 items-center justify-between gap-3">
@@ -29,13 +37,22 @@ export function LandingHeader() {
         <span className="truncate text-base font-black tracking-tight text-[#18261e]">LabelLens</span>
       </Link>
 
-      <Link
-        href="/search"
-        className="ll-interactive flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-[#ffe7ad] px-5 text-sm font-black text-[#18261e] shadow-sm ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
-      >
-        <SearchIcon />
-        Search
-      </Link>
+      <nav className="flex shrink-0 gap-2" aria-label="Primary">
+        <Link
+          href="/scan"
+          className="ll-interactive flex min-h-11 items-center gap-2 rounded-full bg-[#edfbdf] px-4 text-sm font-black text-[#0b6b47] shadow-sm ring-1 ring-[#c9e9b5] hover:bg-[#dff6c8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a]"
+        >
+          <BarcodeIcon />
+          Scan
+        </Link>
+        <Link
+          href="/search"
+          className="ll-interactive flex min-h-11 items-center gap-2 rounded-full bg-[#ffe7ad] px-4 text-sm font-black text-[#18261e] shadow-sm ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
+        >
+          <SearchIcon />
+          Search
+        </Link>
+      </nav>
     </header>
   );
 }
