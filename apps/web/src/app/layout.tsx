@@ -1,4 +1,6 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+import { AppNavbar } from "@/shared/ui/AppNavbar";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,11 +11,14 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body className="ll-app-bg text-[#18261e]">
+        <AppNavbar />
+        {children}
+      </body>
     </html>
   );
 }

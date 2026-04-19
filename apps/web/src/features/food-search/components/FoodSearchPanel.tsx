@@ -26,6 +26,11 @@ export function FoodSearchPanel() {
     setSortBy,
     menuItems,
     menuTotals,
+    draftName,
+    draftDate,
+    editingMenuId,
+    setDraftName,
+    setDraftDate,
     isMenuOpen,
     setIsMenuOpen,
     lastAddedLabel,
@@ -34,6 +39,7 @@ export function FoodSearchPanel() {
     increaseMenuItem,
     decreaseMenuItem,
     updateMenuItemGrams,
+    moveMenuItem,
     removeFromMenu,
     clearMenu,
   } = useFoodSearch();
@@ -147,10 +153,16 @@ export function FoodSearchPanel() {
         isOpen={isMenuOpen}
         items={menuItems}
         totals={menuTotals}
+        draftName={draftName}
+        draftDate={draftDate}
+        editingMenuId={editingMenuId}
+        onDraftNameChange={setDraftName}
+        onDraftDateChange={setDraftDate}
         onClose={() => setIsMenuOpen(false)}
         onIncrease={increaseMenuItem}
         onDecrease={decreaseMenuItem}
         onUpdateGrams={updateMenuItemGrams}
+        onMoveItem={moveMenuItem}
         onRemove={removeFromMenu}
         onClear={clearMenu}
       />

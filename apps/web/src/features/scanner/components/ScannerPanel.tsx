@@ -5,7 +5,7 @@ import { lookupProductBarcode, type ProductItemDto } from "@/shared/api/foods-ap
 import { MenuDrawer } from "@/features/food-search/components/MenuDrawer";
 import { MenuFloatingButton } from "@/features/food-search/components/MenuFloatingButton";
 import { MenuSnackbar } from "@/features/food-search/components/MenuSnackbar";
-import { useFoodSearch } from "@/features/food-search/hooks/useFoodSearch";
+import { useMenuDraft } from "@/features/menu-draft/hooks/useMenuDraft";
 import { CameraScanner } from "./CameraScanner";
 import { ProductResultCard } from "./ProductResultCard";
 
@@ -31,6 +31,11 @@ export function ScannerPanel() {
   const {
     menuItems,
     menuTotals,
+    draftName,
+    draftDate,
+    editingMenuId,
+    setDraftName,
+    setDraftDate,
     isMenuOpen,
     setIsMenuOpen,
     lastAddedLabel,
@@ -39,9 +44,10 @@ export function ScannerPanel() {
     increaseMenuItem,
     decreaseMenuItem,
     updateMenuItemGrams,
+    moveMenuItem,
     removeFromMenu,
     clearMenu,
-  } = useFoodSearch();
+  } = useMenuDraft();
 
   async function runLookup(nextBarcode = barcode) {
     const normalizedBarcode = normalizeBarcode(nextBarcode);
@@ -188,10 +194,16 @@ export function ScannerPanel() {
         isOpen={isMenuOpen}
         items={menuItems}
         totals={menuTotals}
+        draftName={draftName}
+        draftDate={draftDate}
+        editingMenuId={editingMenuId}
+        onDraftNameChange={setDraftName}
+        onDraftDateChange={setDraftDate}
         onClose={() => setIsMenuOpen(false)}
         onIncrease={increaseMenuItem}
         onDecrease={decreaseMenuItem}
         onUpdateGrams={updateMenuItemGrams}
+        onMoveItem={moveMenuItem}
         onRemove={removeFromMenu}
         onClear={clearMenu}
       />

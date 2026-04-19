@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { type FoodItemDto } from "@/shared/api/foods-api";
 import { MacroTile } from "@/shared/ui/MacroTile";
 import { PartialDataNotice } from "@/shared/ui/PartialDataNotice";
-import { type MealKey, mealOptions } from "../hooks/useFoodSearch";
+import { type MealKey, mealOptions } from "@/features/menu-draft/hooks/useMenuDraft";
 import { FoodNutritionModal } from "./FoodNutritionModal";
 
 type FoodResultCardProps = {

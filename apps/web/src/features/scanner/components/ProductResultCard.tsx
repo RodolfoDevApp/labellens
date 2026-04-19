@@ -5,7 +5,7 @@ import type { FoodItemDto, ProductItemDto } from "@/shared/api/foods-api";
 import { MacroTile } from "@/shared/ui/MacroTile";
 import { PartialDataNotice } from "@/shared/ui/PartialDataNotice";
 import { FoodNutritionModal } from "@/features/food-search/components/FoodNutritionModal";
-import { type MealKey, mealOptions } from "@/features/food-search/hooks/useFoodSearch";
+import { type MealKey, mealOptions } from "@/features/menu-draft/hooks/useMenuDraft";
 
 type ProductResultCardProps = {
   product: ProductItemDto;

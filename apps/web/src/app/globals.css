@@ -216,3 +216,70 @@ a {
     transition-duration: 1ms !important;
   }
 }
+
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 8mm;
+  }
+
+  html,
+  body {
+    background: #fffaf0 !important;
+    width: 100% !important;
+    min-height: 100% !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  .ll-weekly-print,
+  .ll-weekly-print * {
+    visibility: visible !important;
+  }
+
+  .ll-weekly-print {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #fffaf0 !important;
+    box-shadow: none !important;
+  }
+
+  .ll-weekly-print table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
+    border-collapse: collapse !important;
+    page-break-inside: avoid !important;
+  }
+
+  .ll-weekly-print th,
+  .ll-weekly-print td {
+    break-inside: avoid !important;
+    padding: 6px !important;
+    font-size: 9px !important;
+    line-height: 1.35 !important;
+  }
+
+  .ll-weekly-print h2 {
+    font-size: 20px !important;
+    line-height: 1.1 !important;
+  }
+
+  .ll-print-hide {
+    display: none !important;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    padding-bottom: 5.25rem;
+  }
+}

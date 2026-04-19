@@ -2,10 +2,20 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { z } from "zod";
-import type { MenuItem, NutritionFacts } from "@labellens/domain";
+import type { MealType, MenuItem, MenuMeal, NutritionFacts } from "@labellens/domain";
+import { createDevAccessToken, readDevAuthUser, type AuthUser } from "./auth/dev-auth.js";
 import { appConfig } from "./config/app-config.js";
 import { getFoodById, searchFoods } from "./foods/food-service.js";
 import { calculateMenu } from "./menus/menu-service.js";
+import {
+  deleteMenu,
+  getMenu,
+  listMenus,
+  saveMenu,
+  updateMenu,
+  type SaveMenuInput,
+  type UpdateMenuInput,
+} from "./menus/persistence/menu-store.js";
 import { lookupProductByBarcode, searchProducts } from "./products/product-service.js";
 import { problemDetails } from "./shared/problem-details.js";
 
@@ -40,8 +50,22 @@ const menuCalculationItemSchema = z.object({
   nutrition: nutritionFactsSchema,
 });
 
+const mealTypeSchema = z.enum(["breakfast", "lunch", "dinner", "snack"]);
+
+const menuMealSchema = z.object({
+  type: mealTypeSchema,
+  items: z.array(menuCalculationItemSchema),
+});
+
+const saveMenuSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  meals: z.array(menuMealSchema).min(1),
+});
+
 type ParsedNutritionFacts = z.infer<typeof nutritionFactsSchema>;
 type ParsedMenuCalculationItem = z.infer<typeof menuCalculationItemSchema>;
+type ParsedMenuMeal = z.infer<typeof menuMealSchema>;
 
 function toNutritionFacts(nutrition: ParsedNutritionFacts): NutritionFacts {
   return {
@@ -70,6 +94,43 @@ function toMenuItem(item: ParsedMenuCalculationItem): MenuItem {
   };
 }
 
+function toMenuMeal(meal: ParsedMenuMeal): MenuMeal {
+  return {
+    type: meal.type as MealType,
+    items: meal.items.map(toMenuItem),
+  };
+}
+
+function requireAuthUser(
+  authorizationHeader: string | undefined,
+  correlationId: string,
+): { ok: true; user: AuthUser } | { ok: false; response: Response } {
+  const user = readDevAuthUser(authorizationHeader);
+
+  if (!user) {
+    return {
+      ok: false,
+      response: new Response(
+        JSON.stringify(
+          problemDetails({
+            title: "Login required",
+            status: 401,
+            detail: "Saving and reading personal menus requires a signed-in user.",
+            code: "auth.required",
+            correlationId,
+          }),
+        ),
+        {
+          status: 401,
+          headers: { "content-type": "application/problem+json" },
+        },
+      ),
+    };
+  }
+
+  return { ok: true, user };
+}
+
 app.use("*", logger());
 app.use(
   "*",
@@ -88,6 +149,52 @@ app.use("*", async (c, next) => {
   c.set("correlationId", correlationId);
 
   await next();
+});
+
+app.post("/api/v1/auth/demo-login", async (c) => {
+  const correlationId = c.get("correlationId");
+  const body = await c.req.json().catch(() => ({}));
+  const parsed = z
+    .object({
+      displayName: z.string().trim().min(1).max(60).optional(),
+    })
+    .safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid login request",
+        status: 400,
+        detail: "displayName must be 1 to 60 characters when provided.",
+        code: "auth.demo_login.invalid_request",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const user: AuthUser = {
+    userId: "demo-user",
+    displayName: parsed.data.displayName ?? "Demo user",
+  };
+
+  return c.json({
+    tokenType: "Bearer",
+    accessToken: createDevAccessToken(user),
+    user,
+  });
+});
+
+app.get("/api/v1/auth/me", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  return c.json({ user: auth.user });
 });
 
 app.get("/api/v1/health", (c) => {
@@ -313,4 +420,215 @@ app.post("/api/v1/menus/calculate", async (c) => {
       422,
     );
   }
+});
+
+app.post("/api/v1/menus", async (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = saveMenuSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid saved menu request",
+        status: 400,
+        detail: "Saved menus require meals with source, sourceId, displayName, grams and nutrition facts.",
+        code: "menus.save.invalid_request",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const saveInput: SaveMenuInput = {
+    ownerId: auth.user.userId,
+    meals: parsed.data.meals.map(toMenuMeal),
+  };
+
+  if (parsed.data.name) {
+    saveInput.name = parsed.data.name;
+  }
+
+  if (parsed.data.date) {
+    saveInput.date = parsed.data.date;
+  }
+
+  const menu = saveMenu(saveInput);
+
+  return c.json({ menu }, 201);
+});
+
+app.put("/api/v1/menus/:menuId", async (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const menuId = z.string().min(1).safeParse(c.req.param("menuId"));
+
+  if (!menuId.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid menu id",
+        status: 400,
+        detail: "menuId is required.",
+        code: "menus.update.invalid_id",
+        correlationId,
+        details: menuId.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = saveMenuSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid menu update request",
+        status: 400,
+        detail: "Updated menus require meals with source, sourceId, displayName, grams and nutrition facts.",
+        code: "menus.update.invalid_request",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const updateInput: UpdateMenuInput = {
+    ownerId: auth.user.userId,
+    menuId: menuId.data,
+    meals: parsed.data.meals.map(toMenuMeal),
+  };
+
+  if (parsed.data.name) {
+    updateInput.name = parsed.data.name;
+  }
+
+  if (parsed.data.date) {
+    updateInput.date = parsed.data.date;
+  }
+
+  const menu = updateMenu(updateInput);
+
+  if (!menu) {
+    return c.json(
+      problemDetails({
+        title: "Menu not found",
+        status: 404,
+        detail: "No saved menu exists for this user and id.",
+        code: "menus.update.not_found",
+        correlationId,
+      }),
+      404,
+    );
+  }
+
+  return c.json({ menu });
+});
+
+app.get("/api/v1/menus", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  return c.json({ items: listMenus(auth.user.userId) });
+});
+
+app.delete("/api/v1/menus/:menuId", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const parsed = z.string().min(1).safeParse(c.req.param("menuId"));
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid menu id",
+        status: 400,
+        detail: "menuId is required.",
+        code: "menus.delete.invalid_id",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const deleted = deleteMenu(auth.user.userId, parsed.data);
+
+  if (!deleted) {
+    return c.json(
+      problemDetails({
+        title: "Menu not found",
+        status: 404,
+        detail: "No saved menu exists for this user and id.",
+        code: "menus.delete.not_found",
+        correlationId,
+      }),
+      404,
+    );
+  }
+
+  return c.json({ deleted: true });
+});
+
+app.get("/api/v1/menus/:menuId", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const parsed = z.string().min(1).safeParse(c.req.param("menuId"));
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid menu id",
+        status: 400,
+        detail: "menuId is required.",
+        code: "menus.detail.invalid_id",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const menu = getMenu(auth.user.userId, parsed.data);
+
+  if (!menu) {
+    return c.json(
+      problemDetails({
+        title: "Menu not found",
+        status: 404,
+        detail: "No saved menu exists for this user and id.",
+        code: "menus.detail.not_found",
+        correlationId,
+      }),
+      404,
+    );
+  }
+
+  return c.json({ menu });
 });

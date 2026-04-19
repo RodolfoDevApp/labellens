@@ -149,3 +149,23 @@ Errors use Problem Details shape:
   "correlationId": "..."
 }
 ```
+
+## POST `/api/v1/menus`
+
+Saves a personal menu. Requires `Authorization: Bearer <token>`.
+
+## PUT `/api/v1/menus/{menuId}`
+
+Updates one saved menu owned by the signed-in user. Uses the same body as `POST /api/v1/menus` and returns `{ "menu": SavedMenu }`.
+
+## GET `/api/v1/menus`
+
+Lists the signed-in user's saved menus.
+
+## GET `/api/v1/menus/{menuId}`
+
+Reads one saved menu owned by the signed-in user.
+
+## DELETE `/api/v1/menus/{menuId}`
+
+Deletes one saved menu owned by the signed-in user. Returns `{ "deleted": true }`.

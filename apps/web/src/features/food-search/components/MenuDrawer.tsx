@@ -1,23 +1,33 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { type MenuTotalsDto } from "@/shared/api/foods-api";
-import { MacroTile } from "@/shared/ui/MacroTile";
-import { PartialDataNotice } from "@/shared/ui/PartialDataNotice";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { type AuthSession, useAuthSession } from "@/features/auth/hooks/useAuthSession";
 import {
   type MealKey,
   type MenuDraftItem,
   mealOptions,
-} from "../hooks/useFoodSearch";
+} from "@/features/menu-draft/hooks/useMenuDraft";
+import { buildSaveMenuPayload } from "@/features/menu-draft/lib/menuSavePayload";
+import { saveMenuDraft, updateSavedMenu, type MenuTotalsDto } from "@/shared/api/foods-api";
+import { MacroTile } from "@/shared/ui/MacroTile";
+import { PartialDataNotice } from "@/shared/ui/PartialDataNotice";
 
 type MenuDrawerProps = {
   isOpen: boolean;
   items: MenuDraftItem[];
   totals: MenuTotalsDto;
+  draftName: string;
+  draftDate: string;
+  editingMenuId: string | null;
+  onDraftNameChange: (name: string) => void;
+  onDraftDateChange: (date: string) => void;
   onClose: () => void;
   onIncrease: (itemId: string) => void;
   onDecrease: (itemId: string) => void;
   onUpdateGrams: (itemId: string, grams: number) => void;
+  onMoveItem: (itemId: string, meal: MealKey) => void;
   onRemove: (itemId: string) => void;
   onClear: () => void;
 };
@@ -47,27 +57,35 @@ function parseGrams(value: string): number {
   return Math.max(1, Math.min(10000, Math.round(parsed)));
 }
 
-function hasMealItems(items: MenuDraftItem[], meal: MealKey): boolean {
-  return items.some((item) => item.meal === meal);
-}
-
 export function MenuDrawer({
   isOpen,
   items,
   totals,
+  draftName,
+  draftDate,
+  editingMenuId,
+  onDraftNameChange,
+  onDraftDateChange,
   onClose,
   onIncrease,
   onDecrease,
   onUpdateGrams,
+  onMoveItem,
   onRemove,
   onClear,
 }: MenuDrawerProps) {
+  const router = useRouter();
   const [expandedMeals, setExpandedMeals] = useState<Record<MealKey, boolean>>({
     breakfast: true,
     lunch: true,
     dinner: true,
     snack: true,
   });
+  const { accessToken } = useAuthSession();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const pendingSaveRef = useRef(false);
 
   const mealCounts = useMemo(
     () =>
@@ -94,6 +112,54 @@ export function MenuDrawer({
     }));
   }
 
+  async function saveCurrentMenu(tokenOverride?: string) {
+    if (items.length === 0 || saveState === "saving") {
+      return;
+    }
+
+    const normalizedName = draftName.trim();
+
+    if (normalizedName.length < 2) {
+      setSaveState("error");
+      setSaveMessage("Give this menu a clear name before saving.");
+      return;
+    }
+
+    const token = tokenOverride ?? accessToken;
+
+    if (!token) {
+      pendingSaveRef.current = true;
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setSaveState("saving");
+    setSaveMessage(null);
+
+    try {
+      const payload = buildSaveMenuPayload(items, { name: normalizedName, date: draftDate });
+      const result = editingMenuId
+        ? await updateSavedMenu(token, editingMenuId, payload)
+        : await saveMenuDraft(token, payload);
+      pendingSaveRef.current = false;
+      setSaveState("saved");
+      setSaveMessage(editingMenuId ? `${result.menu.name} updated.` : `${result.menu.name} saved.`);
+      onClear();
+      onClose();
+      router.push("/menu");
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(error instanceof Error ? error.message : "Menu save failed.");
+      throw error;
+    }
+  }
+
+  async function onAuthenticated(session: AuthSession) {
+    if (pendingSaveRef.current) {
+      await saveCurrentMenu(session.accessToken);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50">
       <button
@@ -108,13 +174,13 @@ export function MenuDrawer({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
-                Menu draft
+                {editingMenuId ? "Editing saved menu" : "New menu"}
               </p>
               <h2 className="mt-1 text-3xl font-black leading-tight text-[#19251d]">
-                {items.length} {items.length === 1 ? "food" : "foods"}
+                {draftName.trim() || "Name this menu"}
               </h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-[#5d665d]">
-                Tap a meal to collapse it. Grams update totals immediately.
+                {items.length} {items.length === 1 ? "food" : "foods"}. Edit grams and meals, then {editingMenuId ? "update it" : "save it"}.
               </p>
             </div>
 
@@ -128,6 +194,18 @@ export function MenuDrawer({
             </button>
           </div>
 
+          <div className="mt-4 grid gap-3">
+            <label className="grid gap-1 text-xs font-black text-[#465246]">
+              Menu name
+              <input
+                value={draftName}
+                onChange={(event) => onDraftNameChange(event.target.value)}
+                placeholder="Example: High protein Monday"
+                className="min-h-11 rounded-2xl border border-[#f0d7ad] bg-[#fff8ea] px-4 text-sm font-black text-[#18261e] outline-none focus:border-[#0b7a53] focus:ring-2 focus:ring-[#c9f0a0]"
+              />
+            </label>
+          </div>
+
           <div className="mt-4 grid grid-cols-4 gap-2">
             <MacroTile value={formatMacro(totals.energyKcal)} label="kcal" tone="sun" />
             <MacroTile value={formatMacro(totals.proteinG, "g")} label="Protein" tone="leaf" />
@@ -135,11 +213,23 @@ export function MenuDrawer({
             <MacroTile value={formatMacro(totals.fatG, "g")} label="Fat" tone="peach" />
           </div>
 
-          <div className="mt-3">
+          <div className="mt-3 space-y-2">
             <PartialDataNotice
               show={totals.partialData && items.length > 0}
-              label="This menu has partial totals."
+              label="Some totals are partial because a food is missing values."
             />
+            {saveMessage ? (
+              <p
+                role={saveState === "error" ? "alert" : "status"}
+                className={`rounded-2xl border px-3 py-2 text-xs font-bold ${
+                  saveState === "error"
+                    ? "border-[#f0d2c7] bg-[#fff0ea] text-[#9b392f]"
+                    : "border-[#c9e9b5] bg-[#edfbdc] text-[#0b6b47]"
+                }`}
+              >
+                {saveMessage}
+              </p>
+            ) : null}
           </div>
         </header>
 
@@ -190,7 +280,7 @@ export function MenuDrawer({
                     </button>
                   </h3>
 
-                  {isExpanded && (
+                  {isExpanded ? (
                     <div
                       id={panelId}
                       role="region"
@@ -212,9 +302,18 @@ export function MenuDrawer({
                                 <p className="ll-line-clamp-2 text-sm font-black leading-tight text-[#18261e]">
                                   {item.food.name}
                                 </p>
-                                <p className="mt-1 text-xs font-bold text-[#6b756c]">
-                                  Source data · {item.food.nutrition.completeness.toLowerCase()}
-                                </p>
+                                <select
+                                  value={item.meal}
+                                  onChange={(event) => onMoveItem(item.id, event.target.value as MealKey)}
+                                  aria-label={`Move ${item.food.name} to another meal`}
+                                  className="mt-2 min-h-9 rounded-full border border-[#d8e7bd] bg-[#fff8ea] px-3 text-xs font-black text-[#344538] outline-none focus:border-[#0b7a53] focus:ring-2 focus:ring-[#c9f0a0]"
+                                >
+                                  {mealOptions.map((option) => (
+                                    <option key={option.key} value={option.key}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
 
                               <div className="grid grid-cols-[42px_minmax(80px,1fr)_42px_auto] items-center gap-2 sm:w-[350px]">
@@ -263,25 +362,43 @@ export function MenuDrawer({
                         ))
                       )}
                     </div>
-                  )}
+                  ) : null}
                 </section>
               );
             })}
           </div>
         </div>
 
-        {items.length > 0 && (
+        {items.length > 0 ? (
           <footer className="shrink-0 border-t border-[#ecd4aa] bg-[#fff1d1]/95 p-4 backdrop-blur md:px-6">
-            <button
-              type="button"
-              onClick={onClear}
-              className="ll-interactive min-h-12 w-full rounded-2xl bg-[#20281f] text-sm font-black text-white shadow-[0_12px_28px_rgba(32,40,31,0.2)] hover:bg-[#111811] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
-            >
-              Clear menu
-            </button>
+            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <button
+                type="button"
+                onClick={() => void saveCurrentMenu()}
+                disabled={saveState === "saving"}
+                className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-5 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.2)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d] disabled:opacity-60"
+              >
+                {saveState === "saving" ? "Saving..." : editingMenuId ? "Update menu" : "Save menu"}
+              </button>
+              <button
+                type="button"
+                onClick={onClear}
+                className="ll-interactive min-h-12 rounded-2xl bg-[#20281f] px-5 text-sm font-black text-white shadow-[0_12px_28px_rgba(32,40,31,0.2)] hover:bg-[#111811] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
+              >
+                {editingMenuId ? "Cancel edit" : "Clear menu"}
+              </button>
+            </div>
           </footer>
-        )}
+        ) : null}
       </aside>
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={(session) => void onAuthenticated(session)}
+        title="Save your menu"
+        description="Login or register, then this menu will be saved to your menus."
+      />
     </div>
   );
 }

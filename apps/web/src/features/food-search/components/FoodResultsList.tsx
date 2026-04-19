@@ -1,5 +1,5 @@
 import { type FoodItemDto } from "@/shared/api/foods-api";
-import { type MealKey } from "../hooks/useFoodSearch";
+import { type MealKey } from "@/features/menu-draft/hooks/useMenuDraft";
 import { FoodResultCard } from "./FoodResultCard";
 
 type FoodResultsListProps = {

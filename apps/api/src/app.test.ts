@@ -15,6 +15,31 @@ const nutrition = {
   completeness: "COMPLETE",
 };
 
+function menuPayload() {
+  return {
+    name: "Breakfast test",
+    date: "2026-04-19",
+    meals: [
+      {
+        type: "breakfast",
+        items: [
+          {
+            id: "item-1",
+            source: "USDA",
+            sourceId: "168874",
+            displayName: "Oats, raw",
+            grams: 40,
+            nutrition,
+          },
+        ],
+      },
+      { type: "lunch", items: [] },
+      { type: "dinner", items: [] },
+      { type: "snack", items: [] },
+    ],
+  };
+}
+
 describe("LabelLens API", () => {
   it("searches fixture USDA foods without a login", async () => {
     const response = await app.request("/api/v1/foods/search?q=oats");
@@ -111,5 +136,90 @@ describe("LabelLens API", () => {
       },
       warnings: [],
     });
+  });
+
+  it("requires login before saving personal menus", async () => {
+    const response = await app.request("/api/v1/menus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(menuPayload()),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(body).toMatchObject({
+      code: "auth.required",
+    });
+  });
+
+  it("saves, lists and deletes a menu for the signed-in demo user", async () => {
+    const loginResponse = await app.request("/api/v1/auth/demo-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "Marban" }),
+    });
+    const loginBody = await loginResponse.json();
+
+    const saveResponse = await app.request("/api/v1/menus", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${loginBody.accessToken}`,
+      },
+      body: JSON.stringify(menuPayload()),
+    });
+    const saveBody = await saveResponse.json();
+
+    expect(saveResponse.status).toBe(201);
+    expect(saveBody.menu).toMatchObject({
+      ownerId: "demo-user",
+      name: "Breakfast test",
+      date: "2026-04-19",
+      totals: {
+        energyKcal: 155.6,
+        proteinG: 6.76,
+      },
+    });
+
+    const updateResponse = await app.request(`/api/v1/menus/${saveBody.menu.id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${loginBody.accessToken}`,
+      },
+      body: JSON.stringify({
+        ...menuPayload(),
+        name: "Updated breakfast",
+      }),
+    });
+    const updateBody = await updateResponse.json();
+
+    expect(updateResponse.status).toBe(200);
+    expect(updateBody.menu).toMatchObject({
+      id: saveBody.menu.id,
+      name: "Updated breakfast",
+      version: 2,
+    });
+
+    const listResponse = await app.request("/api/v1/menus", {
+      headers: {
+        Authorization: `Bearer ${loginBody.accessToken}`,
+      },
+    });
+    const listBody = await listResponse.json();
+
+    expect(listResponse.status).toBe(200);
+    expect(listBody.items.some((item: { id: string }) => item.id === saveBody.menu.id)).toBe(true);
+
+    const deleteResponse = await app.request(`/api/v1/menus/${saveBody.menu.id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${loginBody.accessToken}`,
+      },
+    });
+    const deleteBody = await deleteResponse.json();
+
+    expect(deleteResponse.status).toBe(200);
+    expect(deleteBody).toEqual({ deleted: true });
   });
 });

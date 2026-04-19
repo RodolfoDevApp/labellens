@@ -49,7 +49,7 @@ export function LandingPreview() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-[#b8e07a]">
-              Menu draft
+              Today’s menu
             </p>
             <p className="mt-1 text-xl font-black">Breakfast</p>
           </div>

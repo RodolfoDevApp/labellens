@@ -1,12 +1,10 @@
 import { LandingFeatureGrid } from "@/features/landing/LandingFeatureGrid";
-import { LandingHeader } from "@/features/landing/LandingHeader";
 import { LandingHero } from "@/features/landing/LandingHero";
 
 export default function Home() {
   return (
-    <main className="min-h-dvh overflow-x-hidden ll-app-bg text-[#18261e]">
-      <section className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-10">
-        <LandingHeader />
+    <main className="min-h-[calc(100dvh-4.5rem)] overflow-x-hidden text-[#18261e]">
+      <section className="mx-auto flex min-h-[calc(100dvh-4.5rem)] w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-10">
         <LandingHero />
         <LandingFeatureGrid />
 
