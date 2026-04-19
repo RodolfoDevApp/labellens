@@ -37,8 +37,8 @@ export function LandingHero() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-base leading-7 text-[#5d665d] sm:text-lg sm:leading-8">
-          Search foods, scan packaged products, compare nutrition per 100 g,
-          and build a daily menu by meal without fighting spreadsheets.
+          Search foods, scan packaged products, and build a daily menu by grams
+          without fighting spreadsheets.
         </p>
 
         <div className="mt-8 grid w-full max-w-xl gap-3 sm:grid-cols-2">

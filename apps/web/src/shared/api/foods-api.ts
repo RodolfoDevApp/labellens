@@ -76,7 +76,7 @@ export type MenuTotalsDto = {
 
 export type MenuCalculationItemDto = {
   id: string;
-  source: "USDA" | "OPEN_FOOD_FACTS" | "CUSTOM_RECIPE";
+  source: "USDA" | "OPEN_FOOD_FACTS";
   sourceId: string;
   displayName: string;
   grams: number;
@@ -145,6 +145,39 @@ export type SavedMenusResponseDto = {
 };
 
 export type DeleteMenuResponseDto = {
+  deleted: boolean;
+};
+
+
+export type FavoriteItemDto = {
+  id: string;
+  ownerId: string;
+  source: "USDA" | "OPEN_FOOD_FACTS";
+  sourceId: string;
+  displayName: string;
+  defaultGrams: number;
+  nutrition: NutritionFactsDto;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type SaveFavoriteRequestDto = {
+  source: "USDA" | "OPEN_FOOD_FACTS";
+  sourceId: string;
+  displayName: string;
+  grams: number;
+  nutrition: NutritionFactsDto;
+};
+
+export type FavoriteItemResponseDto = {
+  item: FavoriteItemDto;
+};
+
+export type FavoritesResponseDto = {
+  items: FavoriteItemDto[];
+};
+
+export type DeleteFavoriteItemResponseDto = {
   deleted: boolean;
 };
 
@@ -352,5 +385,53 @@ export async function deleteSavedMenu(
   return parseJsonResponse<DeleteMenuResponseDto>(
     response,
     "Menu delete failed",
+  );
+}
+
+
+export async function saveFavoriteFood(
+  accessToken: string,
+  item: SaveFavoriteRequestDto,
+): Promise<FavoriteItemResponseDto> {
+  const response = await fetch(new URL("/api/v1/favorites", API_BASE_URL), {
+    method: "POST",
+    headers: {
+      ...authHeaders(accessToken),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(item),
+  });
+
+  return parseJsonResponse<FavoriteItemResponseDto>(
+    response,
+    "Favorite save failed",
+  );
+}
+
+export async function listFavoriteFoods(
+  accessToken: string,
+): Promise<FavoritesResponseDto> {
+  const response = await fetch(new URL("/api/v1/favorites", API_BASE_URL), {
+    headers: authHeaders(accessToken),
+  });
+
+  return parseJsonResponse<FavoritesResponseDto>(
+    response,
+    "Favorite lookup failed",
+  );
+}
+
+export async function deleteFavoriteFood(
+  accessToken: string,
+  favoriteItemId: string,
+): Promise<DeleteFavoriteItemResponseDto> {
+  const response = await fetch(new URL(`/api/v1/favorites/${favoriteItemId}`, API_BASE_URL), {
+    method: "DELETE",
+    headers: authHeaders(accessToken),
+  });
+
+  return parseJsonResponse<DeleteFavoriteItemResponseDto>(
+    response,
+    "Favorite delete failed",
   );
 }

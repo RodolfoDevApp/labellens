@@ -2,7 +2,7 @@ const features = [
   {
     icon: "🔎",
     title: "Find foods fast",
-    text: "Search common foods and compare calories, protein, carbs and fat before adding them.",
+    text: "Search common foods and preview calories, protein, carbs and fat before adding them.",
   },
   {
     icon: "🥗",

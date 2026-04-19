@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent } from "react";
+import { type FormEvent, type ReactNode } from "react";
 
 type FoodSearchFormProps = {
   query: string;
@@ -8,9 +8,8 @@ type FoodSearchFormProps = {
   onQueryChange: (value: string) => void;
   onSearch: (query?: string) => Promise<void>;
   onReset: () => void;
+  headerAction?: ReactNode;
 };
-
-const quickSearches = ["Oats", "Yogurt", "Milk", "Chicken"];
 
 function SearchIcon() {
   return (
@@ -27,27 +26,28 @@ export function FoodSearchForm({
   onQueryChange,
   onSearch,
   onReset,
+  headerAction,
 }: FoodSearchFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await onSearch();
   }
 
-  async function handleQuickSearch(value: string) {
-    onQueryChange(value);
-    await onSearch(value);
-  }
 
   return (
     <form onSubmit={handleSubmit} className="ll-pop-in rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-4 shadow-[0_18px_45px_rgba(88,61,24,0.10)]">
-      <div>
-        <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
-          USDA FoodData Central
-        </p>
-        <h1 className="mt-1 text-2xl font-black leading-tight text-[#18261e]">Food search</h1>
-        <p className="mt-1 text-sm leading-6 text-[#5d665d]">
-          Search in English. Pick the meal inside each result row.
-        </p>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
+            USDA FoodData Central
+          </p>
+          <h1 className="mt-1 text-2xl font-black leading-tight text-[#18261e]">Food search</h1>
+          <p className="mt-1 text-sm leading-6 text-[#5d665d]">
+            Search in English. Pick the meal inside each result row.
+          </p>
+        </div>
+
+        {headerAction ? <div className="sm:justify-self-end">{headerAction}</div> : null}
       </div>
 
       <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_150px]">
@@ -86,22 +86,6 @@ export function FoodSearchForm({
           <SearchIcon />
           {status === "loading" ? "Searching..." : "Search"}
         </button>
-      </div>
-
-      <div className="mt-4">
-        <p className="text-xs font-black text-[#6b756c]">Quick searches</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {quickSearches.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => void handleQuickSearch(item)}
-              className="ll-interactive min-h-11 rounded-full border border-[#c9e9b5] bg-[#edfbdf] px-4 text-xs font-black text-[#0b6b47] hover:bg-[#dff6c8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a]"
-            >
-              {item}
-            </button>
-          ))}
-        </div>
       </div>
     </form>
   );

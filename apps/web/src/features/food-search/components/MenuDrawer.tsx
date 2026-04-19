@@ -10,7 +10,11 @@ import {
   mealOptions,
 } from "@/features/menu-draft/hooks/useMenuDraft";
 import { buildSaveMenuPayload } from "@/features/menu-draft/lib/menuSavePayload";
-import { saveMenuDraft, updateSavedMenu, type MenuTotalsDto } from "@/shared/api/foods-api";
+import {
+  saveMenuDraft,
+  updateSavedMenu,
+  type MenuTotalsDto,
+} from "@/shared/api/foods-api";
 import { MacroTile } from "@/shared/ui/MacroTile";
 import { PartialDataNotice } from "@/shared/ui/PartialDataNotice";
 
@@ -65,7 +69,6 @@ export function MenuDrawer({
   draftDate,
   editingMenuId,
   onDraftNameChange,
-  onDraftDateChange,
   onClose,
   onIncrease,
   onDecrease,
@@ -85,7 +88,7 @@ export function MenuDrawer({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const pendingSaveRef = useRef(false);
+  const pendingMenuSaveRef = useRef(false);
 
   const mealCounts = useMemo(
     () =>
@@ -128,7 +131,7 @@ export function MenuDrawer({
     const token = tokenOverride ?? accessToken;
 
     if (!token) {
-      pendingSaveRef.current = true;
+      pendingMenuSaveRef.current = true;
       setIsAuthModalOpen(true);
       return;
     }
@@ -141,7 +144,7 @@ export function MenuDrawer({
       const result = editingMenuId
         ? await updateSavedMenu(token, editingMenuId, payload)
         : await saveMenuDraft(token, payload);
-      pendingSaveRef.current = false;
+      pendingMenuSaveRef.current = false;
       setSaveState("saved");
       setSaveMessage(editingMenuId ? `${result.menu.name} updated.` : `${result.menu.name} saved.`);
       onClear();
@@ -150,12 +153,11 @@ export function MenuDrawer({
     } catch (error) {
       setSaveState("error");
       setSaveMessage(error instanceof Error ? error.message : "Menu save failed.");
-      throw error;
     }
   }
 
   async function onAuthenticated(session: AuthSession) {
-    if (pendingSaveRef.current) {
+    if (pendingMenuSaveRef.current) {
       await saveCurrentMenu(session.accessToken);
     }
   }
@@ -370,16 +372,17 @@ export function MenuDrawer({
         </div>
 
         {items.length > 0 ? (
-          <footer className="shrink-0 border-t border-[#ecd4aa] bg-[#fff1d1]/95 p-4 backdrop-blur md:px-6">
-            <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+          <footer className="shrink-0 border-t border-[#ecd4aa] bg-[#fff1d1]/95 px-4 py-3 backdrop-blur md:px-6">
+            <div className="grid grid-cols-[1fr_auto] gap-3">
               <button
                 type="button"
                 onClick={() => void saveCurrentMenu()}
                 disabled={saveState === "saving"}
-                className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-5 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.2)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d] disabled:opacity-60"
+                className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-5 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.22)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d] disabled:cursor-wait disabled:opacity-60"
               >
                 {saveState === "saving" ? "Saving..." : editingMenuId ? "Update menu" : "Save menu"}
               </button>
+
               <button
                 type="button"
                 onClick={onClear}

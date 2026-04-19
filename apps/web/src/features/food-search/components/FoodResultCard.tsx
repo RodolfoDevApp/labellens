@@ -11,6 +11,7 @@ type FoodResultCardProps = {
   food: FoodItemDto;
   defaultMeal: MealKey;
   onAddToMenu: (food: FoodItemDto, meal: MealKey, grams: number) => void;
+  onSaveFavorite: (food: FoodItemDto, grams: number) => void | Promise<void>;
 };
 
 type MacroPreview = {
@@ -55,6 +56,7 @@ export function FoodResultCard({
   food,
   defaultMeal,
   onAddToMenu,
+  onSaveFavorite,
 }: FoodResultCardProps) {
   const [meal, setMeal] = useState<MealKey>(defaultMeal);
   const [gramsInput, setGramsInput] = useState("40");
@@ -164,18 +166,33 @@ export function FoodResultCard({
             </label>
           </div>
 
-          <button
-            type="button"
-            disabled={!canAdd}
-            onClick={() => {
-              if (grams !== null) {
-                onAddToMenu(food, meal, grams);
-              }
-            }}
-            className="ll-interactive mt-3 min-h-12 w-full rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(11,122,83,0.24)] hover:bg-[#075f41] hover:shadow-[0_14px_28px_rgba(11,122,83,0.28)] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
-          >
-            {canAdd ? `Add ${grams} g to ${mealLabel}` : "Enter grams"}
-          </button>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <button
+              type="button"
+              disabled={!canAdd}
+              onClick={() => {
+                if (grams !== null) {
+                  onAddToMenu(food, meal, grams);
+                }
+              }}
+              className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_10px_24px_rgba(11,122,83,0.24)] hover:bg-[#075f41] hover:shadow-[0_14px_28px_rgba(11,122,83,0.28)] focus:outline-none focus:ring-2 focus:ring-[#ffb84d] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {canAdd ? `Add ${grams} g` : "Enter grams"}
+            </button>
+
+            <button
+              type="button"
+              disabled={!canAdd}
+              onClick={() => {
+                if (grams !== null) {
+                  void onSaveFavorite(food, grams);
+                }
+              }}
+              className="ll-interactive min-h-12 rounded-2xl border border-[#c9e9b5] bg-[#fff8ea] px-4 text-sm font-black text-[#0b6b47] shadow-sm hover:border-[#89c76d] hover:bg-[#f8ffe8] focus:outline-none focus:ring-2 focus:ring-[#ffb84d] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Save favorite
+            </button>
+          </div>
         </div>
       </div>
 

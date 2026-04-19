@@ -10,6 +10,7 @@ import { type MealKey, mealOptions } from "@/features/menu-draft/hooks/useMenuDr
 type ProductResultCardProps = {
   product: ProductItemDto;
   onAddToMenu: (food: FoodItemDto, meal: MealKey, grams: number) => void;
+  onSaveFavorite: (food: FoodItemDto, grams: number) => void | Promise<void>;
 };
 
 type MacroPreview = {
@@ -64,7 +65,7 @@ function gradeLabel(value: string | number | null | undefined, fallback: string)
   return String(value).toUpperCase();
 }
 
-export function ProductResultCard({ product, onAddToMenu }: ProductResultCardProps) {
+export function ProductResultCard({ product, onAddToMenu, onSaveFavorite }: ProductResultCardProps) {
   const [meal, setMeal] = useState<MealKey>("breakfast");
   const [gramsInput, setGramsInput] = useState("40");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -195,14 +196,29 @@ export function ProductResultCard({ product, onAddToMenu }: ProductResultCardPro
               />
             </label>
 
-            <button
-              type="button"
-              disabled={grams === null}
-              onClick={() => grams !== null && onAddToMenu(foodLikeProduct, meal, grams)}
-              className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.22)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#b8e07a] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Add {previewGrams} g to {mealLabel}
-            </button>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <button
+                type="button"
+                disabled={grams === null}
+                onClick={() => grams !== null && onAddToMenu(foodLikeProduct, meal, grams)}
+                className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.22)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#b8e07a] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Add {previewGrams} g
+              </button>
+
+              <button
+                type="button"
+                disabled={grams === null}
+                onClick={() => {
+                  if (grams !== null) {
+                    void onSaveFavorite(foodLikeProduct, grams);
+                  }
+                }}
+                className="ll-interactive min-h-12 rounded-2xl border border-[#c9e9b5] bg-[#fff8ea] px-4 text-sm font-black text-[#0b6b47] shadow-sm hover:border-[#89c76d] hover:bg-[#f8ffe8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Save favorite
+              </button>
+            </div>
           </div>
         </div>
       </div>

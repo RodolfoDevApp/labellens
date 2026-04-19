@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { lookupProductBarcode, type ProductItemDto } from "@/shared/api/foods-api";
+import { useRef, useState } from "react";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { type AuthSession, useAuthSession } from "@/features/auth/hooks/useAuthSession";
 import { MenuDrawer } from "@/features/food-search/components/MenuDrawer";
 import { MenuFloatingButton } from "@/features/food-search/components/MenuFloatingButton";
 import { MenuSnackbar } from "@/features/food-search/components/MenuSnackbar";
+import { SavedFoodShortcuts } from "@/features/food-search/components/SavedFoodShortcuts";
 import { useMenuDraft } from "@/features/menu-draft/hooks/useMenuDraft";
+import { lookupProductBarcode, saveFavoriteFood, type FoodItemDto, type ProductItemDto } from "@/shared/api/foods-api";
 import { CameraScanner } from "./CameraScanner";
 import { ProductResultCard } from "./ProductResultCard";
 
 type LookupStatus = "idle" | "loading" | "success" | "not_found" | "error";
+
+type PendingFavorite = {
+  food: FoodItemDto;
+  grams: number;
+};
 
 function BarcodeIcon() {
   return (
@@ -24,10 +32,15 @@ function normalizeBarcode(value: string): string {
 }
 
 export function ScannerPanel() {
-  const [barcode, setBarcode] = useState("3017624010701");
+  const [barcode, setBarcode] = useState("");
   const [product, setProduct] = useState<ProductItemDto | null>(null);
   const [status, setStatus] = useState<LookupStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
+  const [favoriteRefreshSignal, setFavoriteRefreshSignal] = useState(0);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const pendingFavoriteRef = useRef<PendingFavorite | null>(null);
+  const { accessToken } = useAuthSession();
   const {
     menuItems,
     menuTotals,
@@ -63,6 +76,7 @@ export function ScannerPanel() {
     setStatus("loading");
     setProduct(null);
     setErrorMessage(null);
+    setFavoriteMessage(null);
 
     try {
       const result = await lookupProductBarcode(normalizedBarcode);
@@ -76,6 +90,47 @@ export function ScannerPanel() {
     }
   }
 
+  async function saveFavoriteWithToken(food: FoodItemDto, grams: number, token: string) {
+    await saveFavoriteFood(token, {
+      source: food.nutrition.source,
+      sourceId: food.nutrition.sourceId,
+      displayName: food.name,
+      grams,
+      nutrition: food.nutrition,
+    });
+    setFavoriteMessage(`${food.name} saved as favorite.`);
+    setFavoriteRefreshSignal((current) => current + 1);
+  }
+
+  async function handleSaveFavorite(food: FoodItemDto, grams: number) {
+    if (!accessToken) {
+      pendingFavoriteRef.current = { food, grams };
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      await saveFavoriteWithToken(food, grams, accessToken);
+    } catch (error) {
+      setFavoriteMessage(error instanceof Error ? error.message : "Could not save favorite.");
+    }
+  }
+
+  async function handleAuthenticated(session: AuthSession) {
+    const pendingFavorite = pendingFavoriteRef.current;
+    pendingFavoriteRef.current = null;
+
+    if (!pendingFavorite) {
+      return;
+    }
+
+    try {
+      await saveFavoriteWithToken(pendingFavorite.food, pendingFavorite.grams, session.accessToken);
+    } catch (error) {
+      setFavoriteMessage(error instanceof Error ? error.message : "Could not save favorite.");
+    }
+  }
+
   return (
     <section className="space-y-5 pb-24">
       <CameraScanner
@@ -86,7 +141,7 @@ export function ScannerPanel() {
       />
 
       <section className="rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-4 shadow-[0_18px_45px_rgba(88,61,24,0.10)] sm:p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
           <div>
             <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">
               Manual fallback
@@ -99,13 +154,20 @@ export function ScannerPanel() {
             </p>
           </div>
 
-          <form
-            className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:min-w-[560px]"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void runLookup();
-            }}
-          >
+          <SavedFoodShortcuts
+            defaultMeal="breakfast"
+            refreshSignal={favoriteRefreshSignal}
+            onAddToMenu={addToMenu}
+          />
+        </div>
+
+        <form
+          className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] lg:ml-auto lg:max-w-[560px]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void runLookup();
+          }}
+        >
             <label className="grid gap-1 text-xs font-black text-[#465246]">
               Barcode
               <input
@@ -126,29 +188,18 @@ export function ScannerPanel() {
               <BarcodeIcon />
               {status === "loading" ? "Looking up..." : "Lookup"}
             </button>
-          </form>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          {["3017624010701", "5449000000996"].map((sampleBarcode) => (
-            <button
-              key={sampleBarcode}
-              type="button"
-              onClick={() => {
-                setBarcode(sampleBarcode);
-                void runLookup(sampleBarcode);
-              }}
-              className="ll-interactive rounded-full border border-[#d8e7bd] bg-[#edfbdf] px-4 py-2 text-xs font-black text-[#0b6b47] hover:bg-[#dff6c8] focus:outline-none focus:ring-2 focus:ring-[#b8e07a]"
-            >
-              {sampleBarcode}
-            </button>
-          ))}
-        </div>
+        </form>
       </section>
+
+      {favoriteMessage ? (
+        <div className="rounded-2xl border border-[#c9e9b5] bg-[#edfbdf] px-5 py-3 text-sm font-black text-[#0b6b47]">
+          {favoriteMessage}
+        </div>
+      ) : null}
 
       {status === "idle" ? (
         <div className="rounded-[2rem] border border-[#f0d7ad] bg-[#fff4df] p-5 text-sm font-bold text-[#5d665d] shadow-sm">
-          Scan a packaged product or try one of the fixture barcodes.
+          Scan a packaged product or enter a barcode manually.
         </div>
       ) : null}
 
@@ -172,7 +223,7 @@ export function ScannerPanel() {
       ) : null}
 
       {product ? (
-        <ProductResultCard product={product} onAddToMenu={addToMenu} />
+        <ProductResultCard product={product} onAddToMenu={addToMenu} onSaveFavorite={handleSaveFavorite} />
       ) : null}
 
       <MenuSnackbar
@@ -206,6 +257,14 @@ export function ScannerPanel() {
         onMoveItem={moveMenuItem}
         onRemove={removeFromMenu}
         onClear={clearMenu}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={(session) => void handleAuthenticated(session)}
+        title="Save favorite"
+        description="Login or register, then this product will be saved for quick reuse."
       />
     </section>
   );

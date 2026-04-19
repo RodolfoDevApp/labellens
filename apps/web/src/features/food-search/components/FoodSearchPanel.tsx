@@ -1,12 +1,22 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { AuthModal } from "@/features/auth/components/AuthModal";
+import { type AuthSession, useAuthSession } from "@/features/auth/hooks/useAuthSession";
+import { type FoodItemDto, saveFavoriteFood } from "@/shared/api/foods-api";
 import { FoodSearchForm } from "./FoodSearchForm";
 import { FoodResultsList } from "./FoodResultsList";
 import { FoodResultsToolbar } from "./FoodResultsToolbar";
 import { MenuDrawer } from "./MenuDrawer";
 import { MenuFloatingButton } from "./MenuFloatingButton";
 import { MenuSnackbar } from "./MenuSnackbar";
+import { SavedFoodShortcuts } from "./SavedFoodShortcuts";
 import { useFoodSearch } from "../hooks/useFoodSearch";
+
+type PendingFavorite = {
+  food: FoodItemDto;
+  grams: number;
+};
 
 export function FoodSearchPanel() {
   const {
@@ -43,12 +53,58 @@ export function FoodSearchPanel() {
     removeFromMenu,
     clearMenu,
   } = useFoodSearch();
+  const { accessToken } = useAuthSession();
+  const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
+  const [favoriteRefreshSignal, setFavoriteRefreshSignal] = useState(0);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const pendingFavoriteRef = useRef<PendingFavorite | null>(null);
 
   const hasResults = status === "success" && items.length > 0;
 
   function openMenuFromSnackbar() {
     clearLastAddedLabel();
     setIsMenuOpen(true);
+  }
+
+  async function saveFavoriteWithToken(food: FoodItemDto, grams: number, token: string) {
+    await saveFavoriteFood(token, {
+      source: food.nutrition.source,
+      sourceId: food.nutrition.sourceId,
+      displayName: food.name,
+      grams,
+      nutrition: food.nutrition,
+    });
+    setFavoriteMessage(`${food.name} saved as favorite.`);
+    setFavoriteRefreshSignal((current) => current + 1);
+  }
+
+  async function handleSaveFavorite(food: FoodItemDto, grams: number) {
+    if (!accessToken) {
+      pendingFavoriteRef.current = { food, grams };
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    try {
+      await saveFavoriteWithToken(food, grams, accessToken);
+    } catch (error) {
+      setFavoriteMessage(error instanceof Error ? error.message : "Could not save favorite.");
+    }
+  }
+
+  async function handleAuthenticated(session: AuthSession) {
+    const pendingFavorite = pendingFavoriteRef.current;
+    pendingFavoriteRef.current = null;
+
+    if (!pendingFavorite) {
+      return;
+    }
+
+    try {
+      await saveFavoriteWithToken(pendingFavorite.food, pendingFavorite.grams, session.accessToken);
+    } catch (error) {
+      setFavoriteMessage(error instanceof Error ? error.message : "Could not save favorite.");
+    }
   }
 
   return (
@@ -59,7 +115,20 @@ export function FoodSearchPanel() {
         onQueryChange={setQuery}
         onSearch={runSearch}
         onReset={resetSearch}
+        headerAction={(
+          <SavedFoodShortcuts
+            defaultMeal="breakfast"
+            refreshSignal={favoriteRefreshSignal}
+            onAddToMenu={addToMenu}
+          />
+        )}
       />
+
+      {favoriteMessage ? (
+        <div className="rounded-2xl border border-[#c9e9b5] bg-[#edfbdf] px-5 py-3 text-sm font-black text-[#0b6b47]">
+          {favoriteMessage}
+        </div>
+      ) : null}
 
       <section className="min-w-0">
         {status === "idle" && (
@@ -116,6 +185,7 @@ export function FoodSearchPanel() {
               items={visibleItems}
               defaultMeal="breakfast"
               onAddToMenu={addToMenu}
+              onSaveFavorite={handleSaveFavorite}
             />
 
             <div className="mt-5 flex justify-center">
@@ -165,6 +235,14 @@ export function FoodSearchPanel() {
         onMoveItem={moveMenuItem}
         onRemove={removeFromMenu}
         onClear={clearMenu}
+      />
+
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onAuthenticated={(session) => void handleAuthenticated(session)}
+        title="Save favorite"
+        description="Login or register, then this food will be saved for quick reuse."
       />
     </section>
   );

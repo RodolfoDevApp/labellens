@@ -16,6 +16,11 @@ import {
   type SaveMenuInput,
   type UpdateMenuInput,
 } from "./menus/persistence/menu-store.js";
+import {
+  deleteFavorite,
+  listFavorites,
+  saveFavorite,
+} from "./favorites/persistence/favorite-store.js";
 import { lookupProductByBarcode, searchProducts } from "./products/product-service.js";
 import { problemDetails } from "./shared/problem-details.js";
 
@@ -43,7 +48,7 @@ const nutritionFactsSchema = z.object({
 
 const menuCalculationItemSchema = z.object({
   id: z.string().min(1),
-  source: z.enum(["USDA", "OPEN_FOOD_FACTS", "CUSTOM_RECIPE"]),
+  source: z.enum(["USDA", "OPEN_FOOD_FACTS"]),
   sourceId: z.string().min(1),
   displayName: z.string().min(1),
   grams: z.number().positive().max(10000),
@@ -61,6 +66,14 @@ const saveMenuSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   meals: z.array(menuMealSchema).min(1),
+});
+
+const favoriteItemInputSchema = menuCalculationItemSchema.pick({
+  source: true,
+  sourceId: true,
+  displayName: true,
+  grams: true,
+  nutrition: true,
 });
 
 type ParsedNutritionFacts = z.infer<typeof nutritionFactsSchema>;
@@ -582,6 +595,98 @@ app.delete("/api/v1/menus/:menuId", (c) => {
         status: 404,
         detail: "No saved menu exists for this user and id.",
         code: "menus.delete.not_found",
+        correlationId,
+      }),
+      404,
+    );
+  }
+
+  return c.json({ deleted: true });
+});
+
+app.post("/api/v1/favorites", async (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = favoriteItemInputSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid favorite",
+        status: 400,
+        detail: "Favorites require a name, grams and nutrition facts.",
+        code: "favorites.save.invalid_request",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const favoriteInput = {
+    ownerId: auth.user.userId,
+    source: parsed.data.source,
+    sourceId: parsed.data.sourceId,
+    displayName: parsed.data.displayName,
+    defaultGrams: parsed.data.grams,
+    nutrition: toNutritionFacts(parsed.data.nutrition),
+  };
+
+  const item = saveFavorite(favoriteInput);
+
+  return c.json({ item }, 201);
+});
+
+app.get("/api/v1/favorites", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  return c.json({ items: listFavorites(auth.user.userId) });
+});
+
+app.delete("/api/v1/favorites/:favoriteId", (c) => {
+  const correlationId = c.get("correlationId");
+  const auth = requireAuthUser(c.req.header("Authorization"), correlationId);
+
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const parsed = z.string().min(1).safeParse(c.req.param("favoriteId"));
+
+  if (!parsed.success) {
+    return c.json(
+      problemDetails({
+        title: "Invalid favorite id",
+        status: 400,
+        detail: "favorite id is required.",
+        code: "favorites.delete.invalid_id",
+        correlationId,
+        details: parsed.error.issues,
+      }),
+      400,
+    );
+  }
+
+  const deleted = deleteFavorite(auth.user.userId, parsed.data);
+
+  if (!deleted) {
+    return c.json(
+      problemDetails({
+        title: "Favorite not found",
+        status: 404,
+        detail: "No favorite exists for this user and id.",
+        code: "favorites.delete.not_found",
         correlationId,
       }),
       404,

@@ -2,7 +2,7 @@
 
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
-export type MenuItemSource = "USDA" | "OPEN_FOOD_FACTS" | "CUSTOM_RECIPE";
+export type MenuItemSource = "USDA" | "OPEN_FOOD_FACTS";
 
 export type MenuItem = {
   id: string;

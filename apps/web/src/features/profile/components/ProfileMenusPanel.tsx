@@ -44,7 +44,6 @@ const tabs = [
   { key: "library", label: "Menus" },
   { key: "edit", label: "Edit" },
   { key: "week", label: "Week board" },
-  { key: "pdf", label: "PDF" },
 ] as const;
 
 type TabKey = (typeof tabs)[number]["key"];
@@ -242,7 +241,7 @@ function MenuDocumentPreview({ title, subtitle, items, totals }: PreviewModel) {
     .filter((section) => section.items.length > 0);
 
   return (
-    <article className="ll-export-preview rounded-[2rem] border border-[#e8c98f] bg-[#fffaf0] p-5 shadow-[0_18px_45px_rgba(88,61,24,0.11)] md:p-7">
+    <article className="ll-menu-preview rounded-[2rem] border border-[#e8c98f] bg-[#fffaf0] p-5 shadow-[0_18px_45px_rgba(88,61,24,0.11)] md:p-7">
       <div className="grid gap-4 border-b border-[#eed8ac] pb-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">Menu summary</p>
@@ -603,65 +602,6 @@ function WeekPlannerBoard({
   );
 }
 
-function WeeklyPrintPreview({ savedMenus, weekPlan }: { savedMenus: SavedMenuDto[]; weekPlan: WeekPlan }) {
-  const menuById = new Map(savedMenus.map((menu) => [menu.id, menu]));
-
-  return (
-    <section className="ll-print-area ll-weekly-print rounded-[2rem] border border-[#f0d7ad] bg-[#fffaf0] p-5 shadow-[0_18px_45px_rgba(88,61,24,0.10)]">
-      <div className="mb-5 text-center">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#0b7a53]">LabelLens</p>
-        <h2 className="mt-1 text-3xl font-black text-[#18261e]">Weekly meal sheet</h2>
-        <p className="mt-1 text-sm font-bold text-[#6b756c]">Monday to Sunday · meals by day</p>
-      </div>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-[1050px] w-full border-collapse text-left text-sm">
-          <thead>
-            <tr>
-              <th className="w-32 border border-[#d9c29a] bg-[#fff4d9] p-3 text-xs font-black uppercase tracking-wide">Meal</th>
-              {weekDays.map((day) => {
-                const menu = menuById.get(weekPlan[day.key] ?? "");
-                return (
-                  <th key={day.key} className="border border-[#d9c29a] bg-[#fff4d9] p-3 align-top">
-                    <span className="block text-sm font-black uppercase tracking-wide text-[#18261e]">{day.label}</span>
-                    <span className="mt-1 block text-[0.7rem] font-bold text-[#6b756c]">{menu?.name ?? "No menu"}</span>
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {mealOptions.map((meal) => (
-              <tr key={meal.key}>
-                <th className="border border-[#d9c29a] bg-[#fffaf0] p-3 text-xs font-black uppercase tracking-wide text-[#344538]">{meal.label}</th>
-                {weekDays.map((day) => {
-                  const menu = menuById.get(weekPlan[day.key] ?? "");
-                  const foods = menuMealItems(menu, meal.key);
-                  return (
-                    <td key={`${day.key}-${meal.key}`} className="h-32 border border-[#d9c29a] p-3 align-top">
-                      {foods.length === 0 ? (
-                        <span className="text-xs text-[#9a855f]">—</span>
-                      ) : (
-                        <ul className="space-y-1">
-                          {foods.map((food) => (
-                            <li key={food.id} className="text-xs leading-5 text-[#18261e]">
-                              <strong>{food.name}</strong> <span className="text-[#6b756c]">{food.grams}g</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 export function ProfileMenusPanel() {
   const {
     menuItems,
@@ -872,10 +812,6 @@ export function ProfileMenusPanel() {
     setActiveTab("library");
   }
 
-  function printWeeklyPlan() {
-    window.print();
-  }
-
   if (!hasHydratedMenuDraft || !hasHydratedAuth) {
     return (
       <div className="rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-6 text-sm font-bold text-[#5d665d] shadow-sm">Loading...</div>
@@ -890,7 +826,7 @@ export function ProfileMenusPanel() {
             <div>
               <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">My menus</p>
               <h1 className="mt-1 text-3xl font-black leading-tight text-[#18261e] sm:text-4xl">Save menus and plan your week.</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5d665d]">Use tabs for saved menus, editing, week planning, and PDF export.</p>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-[#5d665d]">Use tabs for saved menus, editing, and week planning.</p>
             </div>
             <div role="tablist" aria-label="Menu workspace" className="flex gap-2 overflow-x-auto rounded-[1.35rem] border border-[#f0d7ad] bg-[#fff8ea] p-2">
               {tabs.map((tab) => <TabButton key={tab.key} tab={tab} activeTab={activeTab} onSelect={changeTab} />)}
@@ -935,20 +871,6 @@ export function ProfileMenusPanel() {
 
         <div id="menus-panel-week" role="tabpanel" aria-labelledby="menus-tab-week" hidden={activeTab !== "week"}>
           <WeekPlannerBoard savedMenus={savedMenus} weekPlan={weekPlan} onChange={updateWeekPlan} />
-        </div>
-
-        <div id="menus-panel-pdf" role="tabpanel" aria-labelledby="menus-tab-pdf" hidden={activeTab !== "pdf"}>
-          <div className="ll-print-hide mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[2rem] border border-[#f0d7ad] bg-[#fff8ea] p-4">
-            <div>
-              <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">PDF export</p>
-              <h2 className="text-2xl font-black text-[#18261e]">Weekly menu sheet</h2>
-              <p className="mt-1 text-sm leading-6 text-[#5d665d]">Print a landscape weekly board: days across, meals down.</p>
-            </div>
-            <button type="button" onClick={printWeeklyPlan} className="ll-interactive min-h-12 rounded-2xl bg-[#0b7a53] px-6 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.22)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
-              Print / PDF
-            </button>
-          </div>
-          <WeeklyPrintPreview savedMenus={savedMenus} weekPlan={weekPlan} />
         </div>
       </section>
 

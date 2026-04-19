@@ -6,12 +6,14 @@ type FoodResultsListProps = {
   items: FoodItemDto[];
   defaultMeal: MealKey;
   onAddToMenu: (food: FoodItemDto, meal: MealKey, grams: number) => void;
+  onSaveFavorite: (food: FoodItemDto, grams: number) => void | Promise<void>;
 };
 
 export function FoodResultsList({
   items,
   defaultMeal,
   onAddToMenu,
+  onSaveFavorite,
 }: FoodResultsListProps) {
   return (
     <div className="space-y-3">
@@ -21,6 +23,7 @@ export function FoodResultsList({
           food={food}
           defaultMeal={defaultMeal}
           onAddToMenu={onAddToMenu}
+          onSaveFavorite={onSaveFavorite}
         />
       ))}
     </div>

@@ -4,9 +4,10 @@
 
 ```text
 Next.js PWA
-  -> local Hono API runner now / API Gateway later
-  -> Lambda-shaped API modules
-  -> DynamoDB single-table later / in-memory cache and stores now
+  -> local Hono API runner now
+  -> HTTP microservices later for business APIs
+  -> Lambdas later only for background jobs and event consumers
+  -> DynamoDB single-table later / in-memory stores now
   -> USDA FoodData Central
   -> Open Food Facts
 ```
@@ -16,16 +17,19 @@ Next.js PWA
 - `apps/api/src/foods`: USDA search/detail, fixture fallback, normalizer and cache-aside interface.
 - `apps/api/src/products`: Open Food Facts barcode/search, fixtures, normalizer and cache-aside interface.
 - `apps/api/src/menus`: menu calculation and protected saved-menu endpoints.
+- `apps/api/src/favorites`: authenticated favorites with default grams for quick reuse.
 - `apps/api/src/auth`: local development auth adapter for progressive save flow.
 - `packages/domain`: source contracts and pure nutrition math.
-- `apps/web/src/features/food-search`: mobile search, result cards, nutrition/source modal, gram input and temporary menu drawer.
-- `apps/web/src/features/scanner`: barcode scan/fallback flow and product-to-menu cards.
-- `apps/web/src/features/profile`: saved menus, current draft preview and print/PDF preview surface.
+- `apps/web/src/features/food-search`: mobile search, result cards, nutrition/source modal, gram input, favorites modal and temporary menu drawer.
+- `apps/web/src/features/scanner`: barcode scan/fallback flow, favorites modal and product-to-menu cards.
+- `apps/web/src/features/profile`: saved menus, current draft preview and week board.
 - `apps/web/src/features/menu-draft`: shared device-local draft used by search, scan, drawer and profile page.
 
 ## Current deliberate compromise
 
-The spec calls for DynamoDB cache and Cognito. This repo keeps the same external contracts but uses in-memory API stores and a local development token so the product flow can move without AWS wiring. The production replacement points are the repository/auth adapters, not the UI flow.
+The repo keeps product flow moving with in-memory API stores and a local development token. That is acceptable only as a temporary implementation detail. The API shape should not stay tied to `Map` storage.
+
+The production replacement points are repositories, auth verification and event publishing. Do not split deployables before those ports exist, or the project will only move in-memory state into different folders.
 
 ## Data principles
 
@@ -55,14 +59,38 @@ The temporary menu draft is shared across `/search`, `/scan`, the floating menu 
 
 ## T4 profile/save surface
 
-The floating drawer is the fast editing surface. The `/menu` route is now the account/menu surface: it shows a clean current-menu preview, print/PDF preview action, saved menus, and login/register when needed. This avoids duplicating the drawer as a full page.
+The floating drawer is the fast editing surface. The `/menu` route is the account/menu surface: current menu preview, saved menus, week board and login/register access. It is not an export surface.
+
+## T5 favorites surface
+
+Favorites are personal shortcuts behind auth. They are saved from search or scan with default grams and shown behind a modal button in both `/search` and `/scan`. They are not pantry inventory.
 
 ## Next architecture step
 
-Create these ports before cloud persistence:
+Create these ports before cloud persistence or physical service splitting:
 
 - `FoodCacheRepository`
 - `ProductCacheRepository`
 - `SavedMenuRepository`
+- `FavoriteRepository`
 - `AuthSessionVerifier`
 - `EventPublisher`
+
+## Microservice/Lambda split target
+
+Business APIs should become HTTP microservices when the ports are stable:
+
+- `food-service`: USDA search/detail, normalizer and food cache.
+- `product-service`: Open Food Facts barcode lookup, normalizer and product cache.
+- `menu-service`: calculate, save, list, update and delete menus.
+- `favorites-service`: save, list and delete favorites.
+
+Lambdas should stay for background work only:
+
+- `food-cache-refresh`
+- `product-cache-refresh`
+- `missing-product-tracker`
+- `analytics-consumer`
+- `dlq-handler`
+
+No current v1 scope for compare, recipe CRUD, pantry inventory or export/PDF jobs.

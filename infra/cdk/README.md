@@ -1,13 +1,13 @@
 # CDK scaffold
 
-Planned stack for T0/T1 cloud deployment:
+Planned stack after repository ports are stable:
 
-- HTTP API Gateway
-- Lambda functions for food, product, menu and profile APIs
+- HTTP entrypoints for `food-service`, `product-service`, `menu-service` and `favorites-service`
 - DynamoDB single table
 - Cognito User Pool
 - SQS queues and DLQs
 - EventBridge schedules
+- Lambda jobs for cache refresh, missing-product tracking, analytics and DLQ handling
 - CloudWatch alarms
 
-Implementation is intentionally pending until the local T1 contracts and DynamoDB repository port are stable.
+Do not deploy a Lambda-only backend as the final shape. Business APIs should stay as microservice boundaries; Lambdas are for background work.

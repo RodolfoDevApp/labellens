@@ -1,26 +1,18 @@
-# ADR-005: Progressive auth and saved menu persistence
+# ADR-005: Progressive auth and menu persistence
 
 ## Status
-Accepted for T4 local implementation.
+Accepted
 
 ## Context
-LabelLens must keep search, scan, detail, comparison and temporary menu public. Login only blocks personal persistence. The temporary menu cannot be lost when the user decides to sign in.
+LabelLens must keep search, scan, detail and temporary menu public. Login only blocks personal persistence. The temporary menu cannot be lost when the user decides to sign in.
 
 ## Decision
-T4 introduces a local development auth session and protected saved-menu endpoints:
+Use progressive auth:
 
-- `POST /api/v1/auth/demo-login` returns a development bearer token.
-- `GET /api/v1/auth/me` validates the current token.
-- `POST /api/v1/menus` saves a menu and requires auth.
-- `GET /api/v1/menus` lists saved menus for the signed-in owner.
-- `GET /api/v1/menus/{menuId}` reads a saved menu for the signed-in owner.
-
-The browser keeps the temporary draft in `localStorage`. Login and registration live in a modal surfaced from the global navbar and from any save action. The modal asks for the fields users expect: email/password for login and name/email/password for registration. If the user clicks save without a session, the save action opens the auth modal; after login/register succeeds, the same draft is saved immediately without route changes. The draft remains editable after saving.
-
-The `/menu` route is not another copy of the drawer. It is the user-facing menu/account surface: current menu preview, print/PDF preview, saved menus and login/register access.
+- Anonymous users can search, scan, inspect details and build a temporary menu.
+- Saving menus and favorites requires auth.
+- After login/register, pending save actions continue with the same draft/item.
+- Backend owner checks use the authenticated user id.
 
 ## Consequences
-- T4 validates progressive auth behavior without blocking public value.
-- Owner checks exist at the route boundary before Cognito integration.
-- The local bearer token is intentionally a development adapter. It is not production security.
-- Cognito can replace the demo auth adapter later while preserving the frontend flow and API shape.
+The app keeps the first-minute flow open while still protecting personal data. `/menu` is the account/menu surface: current menu preview, saved menus, week board and login/register access.

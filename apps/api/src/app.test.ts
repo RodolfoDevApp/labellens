@@ -222,4 +222,55 @@ describe("LabelLens API", () => {
     expect(deleteResponse.status).toBe(200);
     expect(deleteBody).toEqual({ deleted: true });
   });
+
+  it("saves, lists and deletes favorite foods for a signed-in user", async () => {
+    const loginResponse = await app.request("/api/v1/auth/demo-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ displayName: "Favorite user" }),
+    });
+    const loginBody = await loginResponse.json();
+    const headers = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${loginBody.accessToken}`,
+    };
+
+    const [favoriteInput] = menuPayload().meals[0].items;
+    const favoriteResponse = await app.request("/api/v1/favorites", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        source: favoriteInput.source,
+        sourceId: favoriteInput.sourceId,
+        displayName: favoriteInput.displayName,
+        grams: favoriteInput.grams,
+        nutrition: favoriteInput.nutrition,
+      }),
+    });
+    const favoriteBody = await favoriteResponse.json();
+
+    expect(favoriteResponse.status).toBe(201);
+    expect(favoriteBody.item).toMatchObject({
+      ownerId: "demo-user",
+      displayName: "Oats, raw",
+      defaultGrams: 40,
+    });
+
+    const favoriteListResponse = await app.request("/api/v1/favorites", {
+      headers: { Authorization: `Bearer ${loginBody.accessToken}` },
+    });
+    const favoriteListBody = await favoriteListResponse.json();
+
+    expect(favoriteListResponse.status).toBe(200);
+    expect(favoriteListBody.items.some((item: { id: string }) => item.id === favoriteBody.item.id)).toBe(true);
+
+    const deleteResponse = await app.request(`/api/v1/favorites/${favoriteBody.item.id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${loginBody.accessToken}` },
+    });
+
+    expect(deleteResponse.status).toBe(200);
+    expect(await deleteResponse.json()).toEqual({ deleted: true });
+  });
+
 });

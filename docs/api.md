@@ -135,21 +135,6 @@ Response:
 }
 ```
 
-## Errors
-
-Errors use Problem Details shape:
-
-```json
-{
-  "type": "https://labellens.app/errors/product.not_found",
-  "title": "Product not found",
-  "status": 404,
-  "detail": "Open Food Facts does not have a product for that barcode in the current source mode.",
-  "code": "product.not_found",
-  "correlationId": "..."
-}
-```
-
 ## POST `/api/v1/menus`
 
 Saves a personal menu. Requires `Authorization: Bearer <token>`.
@@ -169,3 +154,28 @@ Reads one saved menu owned by the signed-in user.
 ## DELETE `/api/v1/menus/{menuId}`
 
 Deletes one saved menu owned by the signed-in user. Returns `{ "deleted": true }`.
+
+## Favorites
+
+Authenticated personal endpoints. Public search, scan, and temporary menu calculation remain open. Favorites are shortcuts with default grams, not pantry inventory.
+
+| Method | Route | Use |
+| --- | --- | --- |
+| `POST` | `/api/v1/favorites` | Save or update one favorite food/product with default grams. |
+| `GET` | `/api/v1/favorites` | List favorite foods/products for the current user. |
+| `DELETE` | `/api/v1/favorites/{favoriteId}` | Delete a favorite food/product. |
+
+## Errors
+
+Errors use Problem Details shape:
+
+```json
+{
+  "type": "https://labellens.app/errors/product.not_found",
+  "title": "Product not found",
+  "status": 404,
+  "detail": "Open Food Facts does not have a product for that barcode in the current source mode.",
+  "code": "product.not_found",
+  "correlationId": "..."
+}
+```
