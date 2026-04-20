@@ -123,3 +123,14 @@ npm run check:openapi
 - A protected route does not declare bearer auth.
 - A public route accidentally declares bearer auth.
 - An out-of-scope path such as compare, recipes, pantry or export appears again.
+
+## Frontend API client types
+
+The web API client must not redefine API DTOs by hand. `apps/web/src/shared/api/foods-api.ts` is a compatibility barrel only. Endpoint functions live in focused files under `apps/web/src/shared/api/`, and DTO aliases come from `@labellens/contracts` through `api-types.ts`.
+
+Rules:
+
+- Contract response/request shapes live in `packages/contracts/src/client/*` and schemas live in `packages/contracts/src/schemas/*`.
+- Web feature components may keep importing from `@/shared/api/foods-api` until imports are cleaned up later.
+- New API functions must return types imported from `@labellens/contracts`, not local duplicate DTOs.
+- UI-only form inputs can remain in the web API layer when they are not HTTP contract bodies.
