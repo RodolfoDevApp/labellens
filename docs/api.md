@@ -2,98 +2,68 @@
 
 Base URL local: `http://localhost:4000`
 
-## GET `/api/v1/health`
+The source of truth for API shape is now OpenAPI, generated from `@labellens/contracts`:
 
-Returns API status and whether external providers are running from fixtures or live API.
-
-## GET `/api/v1/foods/search?q=&page=`
-
-Searches USDA foods through the backend.
-
-Response:
-
-```json
-{
-  "items": [],
-  "source": "USDA",
-  "sourceMode": "fixture",
-  "queryUsed": "oats",
-  "page": 1
-}
+```txt
+packages/contracts/generated/openapi.json
+packages/contracts/generated/openapi.yaml
 ```
 
-## GET `/api/v1/foods/{fdcId}`
+Generate the files with:
 
-Returns one USDA food detail by FDC ID.
-
-Response:
-
-```json
-{
-  "food": {
-    "id": "USDA-168874",
-    "name": "Oats, raw",
-    "nutrition": {
-      "energyKcalPer100g": 389,
-      "proteinGPer100g": 16.89,
-      "carbsGPer100g": 66.27,
-      "fatGPer100g": 6.9,
-      "source": "USDA",
-      "sourceId": "168874",
-      "lastFetchedAt": "2026-04-18T00:00:00.000Z",
-      "completeness": "COMPLETE"
-    }
-  },
-  "nutritionFacts": {},
-  "source": "USDA",
-  "sourceMode": "fixture"
-}
+```bash
+npm run generate:openapi
 ```
 
-## GET `/api/v1/products/barcode/{barcode}`
+This document is the human summary only. If this file and OpenAPI disagree, OpenAPI wins.
 
-Looks up a packaged product by barcode through the backend. The browser never calls Open Food Facts directly.
+## Scope sealed for v1
 
-Response:
+Included:
 
-```json
-{
-  "product": {
-    "barcode": "3017624010701",
-    "name": "Nutella",
-    "brand": "Ferrero",
-    "ingredientsText": "Sugar, palm oil, hazelnuts...",
-    "allergens": ["milk", "nuts"],
-    "additives": ["emulsifier"],
-    "novaGroup": 4,
-    "nutriScore": "e",
-    "nutrition": {
-      "energyKcalPer100g": 539,
-      "proteinGPer100g": 6.3,
-      "carbsGPer100g": 57.5,
-      "fatGPer100g": 30.9,
-      "source": "OPEN_FOOD_FACTS",
-      "sourceId": "3017624010701",
-      "lastFetchedAt": "2026-04-18T00:00:00.000Z",
-      "completeness": "PARTIAL"
-    }
-  },
-  "source": "OPEN_FOOD_FACTS",
-  "sourceMode": "fixture"
-}
-```
+- Food search/detail through USDA-backed backend routes.
+- Barcode product lookup through Open Food Facts-backed backend routes.
+- Menu calculation by grams.
+- Authenticated saved menus.
+- Authenticated favorites as shortcuts with default grams.
 
-A missing product returns `404 product.not_found`. The UI treats that as a useful state, not a broken screen.
+Excluded:
 
-## GET `/api/v1/products/search?q=`
+- Compare.
+- Recipes.
+- Pantry inventory.
+- Export/PDF.
+- Ranking or “better option” recommendations.
 
-Fixture-only in T2. Reserved for future packaged product search. Barcode lookup is the scanner path.
+## Public routes
 
-## POST `/api/v1/menus/calculate`
+| Method | Route | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/health` | API health, source mode and storage driver. |
+| `POST` | `/api/v1/auth/demo-login` | Local-only demo token. |
+| `GET` | `/api/v1/foods/search?q=&page=` | Search USDA foods through backend. |
+| `GET` | `/api/v1/foods/{fdcId}` | Get one USDA food detail. |
+| `GET` | `/api/v1/products/barcode/{barcode}` | Look up one packaged product by barcode. |
+| `GET` | `/api/v1/products/search?q=` | Fixture-only/reserved product search. |
+| `POST` | `/api/v1/menus/calculate` | Calculate menu totals from grams and nutrition facts. |
 
-Calculates menu totals from nutrition facts per 100 g and user grams.
+## Protected routes
 
-Request:
+Protected routes require `Authorization: Bearer <token>`.
+
+| Method | Route | Use |
+| --- | --- | --- |
+| `GET` | `/api/v1/auth/me` | Return the current authenticated user. |
+| `POST` | `/api/v1/menus` | Save a personal menu. |
+| `GET` | `/api/v1/menus` | List personal saved menus. |
+| `GET` | `/api/v1/menus/{menuId}` | Read one owned saved menu. |
+| `PUT` | `/api/v1/menus/{menuId}` | Update one owned saved menu. |
+| `DELETE` | `/api/v1/menus/{menuId}` | Delete one owned saved menu. |
+| `POST` | `/api/v1/favorites` | Save or update one favorite food/product with default grams. |
+| `GET` | `/api/v1/favorites` | List personal favorites. |
+| `DELETE` | `/api/v1/favorites/{favoriteId}` | Delete one owned favorite. |
+
+## Menu calculation request
 
 ```json
 {
@@ -119,55 +89,9 @@ Request:
 }
 ```
 
-Response:
+## Error shape
 
-```json
-{
-  "totals": {
-    "energyKcal": 155.6,
-    "proteinG": 6.76,
-    "carbsG": 26.51,
-    "fatG": 2.76,
-    "partialData": false
-  },
-  "partialData": false,
-  "warnings": []
-}
-```
-
-## POST `/api/v1/menus`
-
-Saves a personal menu. Requires `Authorization: Bearer <token>`.
-
-## PUT `/api/v1/menus/{menuId}`
-
-Updates one saved menu owned by the signed-in user. Uses the same body as `POST /api/v1/menus` and returns `{ "menu": SavedMenu }`.
-
-## GET `/api/v1/menus`
-
-Lists the signed-in user's saved menus.
-
-## GET `/api/v1/menus/{menuId}`
-
-Reads one saved menu owned by the signed-in user.
-
-## DELETE `/api/v1/menus/{menuId}`
-
-Deletes one saved menu owned by the signed-in user. Returns `{ "deleted": true }`.
-
-## Favorites
-
-Authenticated personal endpoints. Public search, scan, and temporary menu calculation remain open. Favorites are shortcuts with default grams, not pantry inventory.
-
-| Method | Route | Use |
-| --- | --- | --- |
-| `POST` | `/api/v1/favorites` | Save or update one favorite food/product with default grams. |
-| `GET` | `/api/v1/favorites` | List favorite foods/products for the current user. |
-| `DELETE` | `/api/v1/favorites/{favoriteId}` | Delete a favorite food/product. |
-
-## Errors
-
-Errors use Problem Details shape:
+All HTTP errors use the same Problem Details shape:
 
 ```json
 {
