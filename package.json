@@ -32,7 +32,8 @@
     "compose:logs:web": "docker compose -f infra/compose/docker-compose.yml logs -f web",
     "local:resources:check": "powershell -ExecutionPolicy Bypass -File infra/local/check-local-resources.ps1",
     "build:contracts": "npm run build -w @labellens/contracts",
-    "generate:openapi": "npm run build:contracts && npm run generate:openapi -w @labellens/contracts"
+    "generate:openapi": "npm run build:contracts && npm run generate:openapi -w @labellens/contracts",
+    "check:openapi": "npm run build:contracts && npm run check:openapi -w @labellens/contracts"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

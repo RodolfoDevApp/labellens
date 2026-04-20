@@ -103,3 +103,23 @@ All HTTP errors use the same Problem Details shape:
   "correlationId": "..."
 }
 ```
+
+## OpenAPI verification
+
+The OpenAPI contract is sealed for the current v1 scope. Any route addition, removal or auth-boundary change must update `packages/contracts/src/openapi/openapi-document.ts`, `packages/contracts/src/openapi/expected-v1-routes.ts`, and the generated artifacts.
+
+Run:
+
+```powershell
+npm run generate:openapi
+npm run check:openapi
+```
+
+`check:openapi` fails when:
+
+- `openapi.json` or `openapi.yaml` is stale.
+- A current v1 route is missing from the contract.
+- An unexpected route appears in the contract.
+- A protected route does not declare bearer auth.
+- A public route accidentally declares bearer auth.
+- An out-of-scope path such as compare, recipes, pantry or export appears again.
