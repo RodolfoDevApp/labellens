@@ -28,7 +28,9 @@
     "compose:logs:api": "docker compose -f infra/compose/docker-compose.yml logs -f api",
     "compose:logs:localstack": "docker compose -f infra/compose/docker-compose.yml logs -f localstack",
     "local:init": "powershell -ExecutionPolicy Bypass -File infra/local/init-localstack.ps1",
-    "local:persistence:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-local-persistence.ps1"
+    "local:persistence:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-local-persistence.ps1",
+    "compose:logs:web": "docker compose -f infra/compose/docker-compose.yml logs -f web",
+    "local:resources:check": "powershell -ExecutionPolicy Bypass -File infra/local/check-local-resources.ps1"
   },
   "devDependencies": {
     "prettier": "^3.6.2",
