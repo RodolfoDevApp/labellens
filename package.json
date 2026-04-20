@@ -24,7 +24,11 @@
     "build:domain": "npm run build -w @labellens/domain",
     "build:api": "npm run build -w @labellens/api",
     "build:web": "npm run build -w web",
-    "build:infrastructure": "npm run build -w @labellens/infrastructure"
+    "build:infrastructure": "npm run build -w @labellens/infrastructure",
+    "compose:logs:api": "docker compose -f infra/compose/docker-compose.yml logs -f api",
+    "compose:logs:localstack": "docker compose -f infra/compose/docker-compose.yml logs -f localstack",
+    "local:init": "powershell -ExecutionPolicy Bypass -File infra/local/init-localstack.ps1",
+    "local:persistence:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-local-persistence.ps1"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

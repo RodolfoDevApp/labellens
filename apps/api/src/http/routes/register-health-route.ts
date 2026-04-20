@@ -10,6 +10,7 @@ export function registerHealthRoute(app: Hono<AppBindings>): void {
       time: new Date().toISOString(),
       usdaMode: appConfig.usdaApiKey ? "live" : "fixture",
       openFoodFactsMode: appConfig.openFoodFactsMode === "live" ? "live" : "fixture",
+      storageDriver: appConfig.storageDriver,
     });
   });
 }
