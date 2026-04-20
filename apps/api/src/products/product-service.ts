@@ -58,7 +58,7 @@ function searchFixtureProducts(query: string): ProductItem[] {
 
 export async function lookupProductByBarcode(barcode: string): Promise<ProductLookupResponse | null> {
   const normalizedBarcode = normalizeBarcode(barcode);
-  const cachedProduct = productCache.getBarcode(normalizedBarcode);
+  const cachedProduct = await productCache.getBarcode(normalizedBarcode);
 
   if (cachedProduct) {
     return cachedProduct;
@@ -68,7 +68,7 @@ export async function lookupProductByBarcode(barcode: string): Promise<ProductLo
     const fixtureProduct = getFixtureProductByBarcode(normalizedBarcode);
 
     return fixtureProduct
-      ? productCache.setBarcode(normalizedBarcode, {
+      ? await productCache.setBarcode(normalizedBarcode, {
           product: fixtureProduct,
           source: "OPEN_FOOD_FACTS",
           sourceMode: "fixture",
@@ -83,7 +83,7 @@ export async function lookupProductByBarcode(barcode: string): Promise<ProductLo
   );
 
   return product
-    ? productCache.setBarcode(normalizedBarcode, {
+    ? await productCache.setBarcode(normalizedBarcode, {
         product,
         source: "OPEN_FOOD_FACTS",
         sourceMode: "live",
@@ -104,7 +104,7 @@ export async function searchProducts(query: string): Promise<ProductSearchRespon
     };
   }
 
-  const cachedProducts = productCache.getSearch(trimmed);
+  const cachedProducts = await productCache.getSearch(trimmed);
 
   if (cachedProducts) {
     return {
@@ -117,7 +117,7 @@ export async function searchProducts(query: string): Promise<ProductSearchRespon
 
   if (sourceMode !== "live") {
     return {
-      items: productCache.setSearch(trimmed, searchFixtureProducts(trimmed)),
+      items: await productCache.setSearch(trimmed, searchFixtureProducts(trimmed)),
       source: "OPEN_FOOD_FACTS",
       sourceMode,
       queryUsed: trimmed,

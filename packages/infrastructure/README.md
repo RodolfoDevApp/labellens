@@ -1,11 +1,16 @@
 # Infrastructure package
 
-Use this package for AWS and external adapter implementations.
+Concrete infrastructure adapters live here. Application and domain code must not import AWS SDKs directly.
 
-Next adapters:
+Current adapters:
 
-- DynamoDB food/product cache repository
-- DynamoDB saved-menu repository
-- DynamoDB favorites repository
-- SQS/EventBridge publisher
-- Cognito owner resolver helpers
+- `DynamoDbSavedMenuRepository`
+- `DynamoDbFavoriteRepository`
+- `createDynamoDbDocumentClient`
+
+Rules:
+
+- Repositories implement `@labellens/application` ports.
+- DynamoDB keys and mappers stay in separate files.
+- No HTTP handlers, Hono code, or frontend DTOs belong in this package.
+- AWS endpoint selection is configuration, not business logic.

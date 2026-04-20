@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { app } from "./app.js";
+import { createApp } from "./app.js";
+import { createInMemoryAppDependencies } from "./composition/create-app-dependencies.js";
+
+function testApp() {
+  return createApp(createInMemoryAppDependencies());
+}
 
 const nutrition = {
   energyKcalPer100g: 389,
@@ -42,7 +47,7 @@ function menuPayload() {
 
 describe("LabelLens API", () => {
   it("searches fixture USDA foods without a login", async () => {
-    const response = await app.request("/api/v1/foods/search?q=oats");
+    const response = await testApp().request("/api/v1/foods/search?q=oats");
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -62,7 +67,7 @@ describe("LabelLens API", () => {
   });
 
   it("rejects too-short food queries with problem details", async () => {
-    const response = await app.request("/api/v1/foods/search?q=o");
+    const response = await testApp().request("/api/v1/foods/search?q=o");
     const body = await response.json();
 
     expect(response.status).toBe(400);
@@ -74,7 +79,7 @@ describe("LabelLens API", () => {
   });
 
   it("looks up fixture Open Food Facts products by barcode", async () => {
-    const response = await app.request("/api/v1/products/barcode/3017624010701");
+    const response = await testApp().request("/api/v1/products/barcode/3017624010701");
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -95,7 +100,7 @@ describe("LabelLens API", () => {
   });
 
   it("treats missing barcodes as useful product.not_found state", async () => {
-    const response = await app.request("/api/v1/products/barcode/1234567890123");
+    const response = await testApp().request("/api/v1/products/barcode/1234567890123");
     const body = await response.json();
 
     expect(response.status).toBe(404);
@@ -106,7 +111,7 @@ describe("LabelLens API", () => {
   });
 
   it("calculates menu totals from source data and grams", async () => {
-    const response = await app.request("/api/v1/menus/calculate", {
+    const response = await testApp().request("/api/v1/menus/calculate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -139,7 +144,7 @@ describe("LabelLens API", () => {
   });
 
   it("requires login before saving personal menus", async () => {
-    const response = await app.request("/api/v1/menus", {
+    const response = await testApp().request("/api/v1/menus", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(menuPayload()),
@@ -153,6 +158,7 @@ describe("LabelLens API", () => {
   });
 
   it("saves, lists and deletes a menu for the signed-in demo user", async () => {
+    const app = testApp();
     const loginResponse = await app.request("/api/v1/auth/demo-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -224,6 +230,7 @@ describe("LabelLens API", () => {
   });
 
   it("saves, lists and deletes favorite foods for a signed-in user", async () => {
+    const app = testApp();
     const loginResponse = await app.request("/api/v1/auth/demo-login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

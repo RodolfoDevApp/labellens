@@ -23,7 +23,8 @@
     "dev:api": "npm run dev -w apps/api",
     "build:domain": "npm run build -w @labellens/domain",
     "build:api": "npm run build -w @labellens/api",
-    "build:web": "npm run build -w web"
+    "build:web": "npm run build -w web",
+    "build:infrastructure": "npm run build -w @labellens/infrastructure"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

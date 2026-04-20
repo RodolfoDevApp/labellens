@@ -1,13 +1,11 @@
-export type AuthUser = {
-  userId: string;
-  displayName: string;
-};
+import type { AuthUser } from "@labellens/application";
+
+export type { AuthUser };
 
 const DEV_AUTH_PREFIX = "dev.";
 
 function encodeBase64Url(value: string): string {
-  return Buffer.from(value, "utf8")
-    .toString("base64url");
+  return Buffer.from(value, "utf8").toString("base64url");
 }
 
 function decodeBase64Url(value: string): string {
@@ -48,9 +46,10 @@ export function readDevAuthUser(authorizationHeader: string | undefined | null):
 
     return {
       userId: parsed.userId,
-      displayName: typeof parsed.displayName === "string" && parsed.displayName.length > 0
-        ? parsed.displayName
-        : "Demo user",
+      displayName:
+        typeof parsed.displayName === "string" && parsed.displayName.length > 0
+          ? parsed.displayName
+          : "Demo user",
     };
   } catch {
     return null;

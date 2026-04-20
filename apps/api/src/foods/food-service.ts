@@ -75,14 +75,14 @@ export async function searchFoods(query: string, page = 1): Promise<FoodSearchRe
   }
 
   const translatedQuery = translateFoodQuery(query);
-  const cachedSearch = foodCache.getSearch(translatedQuery, page);
+  const cachedSearch = await foodCache.getSearch(translatedQuery, page);
 
   if (cachedSearch) {
     return cachedSearch;
   }
 
   if (!appConfig.usdaApiKey) {
-    return foodCache.setSearch(translatedQuery, page, {
+    return await foodCache.setSearch(translatedQuery, page, {
       items: searchFixtureFoods(query),
       source: "USDA",
       sourceMode: "fixture",
@@ -93,7 +93,7 @@ export async function searchFoods(query: string, page = 1): Promise<FoodSearchRe
   const usdaClient = createUsdaClient();
   const response = await usdaClient.searchFoods(translatedQuery, page);
 
-  return foodCache.setSearch(translatedQuery, page, {
+  return await foodCache.setSearch(translatedQuery, page, {
     items: rankUsdaFoods(response.foods ?? [], translatedQuery)
       .slice(0, 10)
       .map(normalizeUsdaSearchFood),
@@ -105,7 +105,7 @@ export async function searchFoods(query: string, page = 1): Promise<FoodSearchRe
 
 export async function getFoodById(fdcId: string): Promise<FoodDetailResponse | null> {
   const normalizedFdcId = normalizeFdcId(fdcId);
-  const cachedDetail = foodCache.getDetail(normalizedFdcId);
+  const cachedDetail = await foodCache.getDetail(normalizedFdcId);
 
   if (cachedDetail) {
     return cachedDetail;
@@ -115,7 +115,7 @@ export async function getFoodById(fdcId: string): Promise<FoodDetailResponse | n
     const fixtureFood = getFixtureFoodById(normalizedFdcId);
 
     return fixtureFood
-      ? foodCache.setDetail(normalizedFdcId, {
+      ? await foodCache.setDetail(normalizedFdcId, {
           food: fixtureFood,
           nutritionFacts: fixtureFood.nutrition,
           source: "USDA",
@@ -127,7 +127,7 @@ export async function getFoodById(fdcId: string): Promise<FoodDetailResponse | n
   const usdaClient = createUsdaClient();
   const food = normalizeUsdaFood(await usdaClient.getFoodById(normalizedFdcId));
 
-  return foodCache.setDetail(normalizedFdcId, {
+  return await foodCache.setDetail(normalizedFdcId, {
     food,
     nutritionFacts: food.nutrition,
     source: "USDA",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MenuItem, NutritionFacts } from "@labellens/domain";
-import { calculateMenu } from "./menu-service.js";
+import { CalculateMenuCommand } from "@labellens/application";
 
 const completeNutrition: NutritionFacts = {
   energyKcalPer100g: 389,
@@ -28,7 +28,11 @@ function menuItem(overrides: Partial<MenuItem> = {}): MenuItem {
   };
 }
 
-describe("calculateMenu", () => {
+function calculateMenu(items: MenuItem[]) {
+  return new CalculateMenuCommand().execute({ items });
+}
+
+describe("CalculateMenuCommand", () => {
   it("calculates totals from per-100g source values and item grams", () => {
     const result = calculateMenu([menuItem()]);
 
