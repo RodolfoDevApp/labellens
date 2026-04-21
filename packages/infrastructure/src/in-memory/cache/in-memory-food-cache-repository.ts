@@ -61,6 +61,10 @@ export class InMemoryFoodCacheRepository<TSearchResult, TDetailResult>
     return set(this.detailCache, fdcId, value);
   }
 
+  async listDetailIds(limit: number): Promise<string[]> {
+    return Array.from(this.detailCache.keys()).slice(0, Math.max(0, limit));
+  }
+
   clear(): void {
     this.searchCache.clear();
     this.detailCache.clear();

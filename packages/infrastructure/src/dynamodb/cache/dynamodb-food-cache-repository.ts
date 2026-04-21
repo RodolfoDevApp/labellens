@@ -2,7 +2,7 @@ import type { FoodCacheRepository } from "@labellens/application";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { DynamoDbTableName } from "../table-name.js";
 import { DynamoDbJsonCache } from "./dynamodb-json-cache.js";
-import { foodDetailCacheKey, foodSearchCacheKey } from "./food-cache-keys.js";
+import { foodDetailCacheKey, foodDetailPkPrefix, foodSearchCacheKey } from "./food-cache-keys.js";
 
 const FOOD_CACHE_TTL_SECONDS = 6 * 60 * 60;
 
@@ -39,5 +39,11 @@ export class DynamoDbFoodCacheRepository<TSearchResult, TDetailResult>
 
   async setDetail(fdcId: string, value: TDetailResult): Promise<TDetailResult> {
     return this.detailCache.set(foodDetailCacheKey(fdcId), value);
+  }
+
+  async listDetailIds(limit: number): Promise<string[]> {
+    return (await this.detailCache.listPkValuesByPrefix(foodDetailPkPrefix(), limit)).map((pk) =>
+      pk.slice(foodDetailPkPrefix().length),
+    );
   }
 }

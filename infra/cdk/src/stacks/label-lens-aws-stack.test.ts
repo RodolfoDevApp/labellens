@@ -107,7 +107,7 @@ describe("LabelLensAwsStack", () => {
   it("creates one ECR repository per deployable service and worker", () => {
     const template = synthesizeTemplate();
 
-    template.resourceCountIs("AWS::ECR::Repository", 8);
+    template.resourceCountIs("AWS::ECR::Repository", 11);
 
     for (const repositoryName of [
       "labellens-test/gateway",
@@ -118,6 +118,9 @@ describe("LabelLensAwsStack", () => {
       "labellens-test/favorites-service",
       "labellens-test/product-not-found-worker",
       "labellens-test/analytics-worker",
+      "labellens-test/food-cache-refresh-worker",
+      "labellens-test/product-cache-refresh-worker",
+      "labellens-test/dlq-handler",
     ]) {
       template.hasResourceProperties("AWS::ECR::Repository", {
         RepositoryName: repositoryName,
@@ -143,7 +146,7 @@ describe("LabelLensAwsStack", () => {
       Value: "gateway-only",
     });
 
-    template.resourceCountIs("AWS::SSM::Parameter", 37);
+    template.resourceCountIs("AWS::SSM::Parameter", 43);
   });
 
   it("alarms on DLQ messages and queue age", () => {

@@ -273,6 +273,92 @@ services:
         condition: service_healthy
         restart: true
 
+  food-cache-refresh-worker:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:food-cache-refresh-worker"
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+      FOOD_CACHE_REFRESH_QUEUE_URL: http://localstack:4566/000000000000/labellens-food-cache-refresh-queue
+      LABEL_LENS_FOOD_SERVICE_URL: http://food-service:4101
+      WORKER_MAX_MESSAGES: 5
+      WORKER_WAIT_TIME_SECONDS: 2
+      WORKER_VISIBILITY_TIMEOUT_SECONDS: 10
+      WORKER_IDLE_DELAY_MS: 250
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+      food-service:
+        condition: service_healthy
+        restart: true
+
+  product-cache-refresh-worker:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:product-cache-refresh-worker"
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+      PRODUCT_CACHE_REFRESH_QUEUE_URL: http://localstack:4566/000000000000/labellens-product-cache-refresh-queue
+      LABEL_LENS_PRODUCT_SERVICE_URL: http://product-service:4102
+      WORKER_MAX_MESSAGES: 5
+      WORKER_WAIT_TIME_SECONDS: 2
+      WORKER_VISIBILITY_TIMEOUT_SECONDS: 10
+      WORKER_IDLE_DELAY_MS: 250
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+      product-service:
+        condition: service_healthy
+        restart: true
+
+  dlq-handler:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:dlq-handler"
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+      PRODUCT_NOT_FOUND_DLQ_URL: http://localstack:4566/000000000000/labellens-product-not-found-dlq
+      ANALYTICS_DLQ_URL: http://localstack:4566/000000000000/labellens-analytics-dlq
+      FOOD_CACHE_REFRESH_DLQ_URL: http://localstack:4566/000000000000/labellens-food-cache-refresh-dlq
+      PRODUCT_CACHE_REFRESH_DLQ_URL: http://localstack:4566/000000000000/labellens-product-cache-refresh-dlq
+      WORKER_MAX_MESSAGES: 5
+      WORKER_WAIT_TIME_SECONDS: 2
+      WORKER_VISIBILITY_TIMEOUT_SECONDS: 10
+      WORKER_IDLE_DELAY_MS: 250
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+
   web:
     image: node:24-bookworm-slim
     working_dir: /workspace

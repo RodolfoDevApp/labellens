@@ -29,3 +29,6 @@ export * from "./events/analytics-events.js";
 export * from "./analytics/commands/record-analytics-event-command.js";
 export * from "./analytics/types/analytics-event-record.js";
 export * from "./ports/analytics-event-repository.js";
+export * from "./ports/dlq-message-repository.js";
+export * from "./dlq/commands/record-dlq-message-command.js";
+export * from "./dlq/types/dlq-message-record.js";

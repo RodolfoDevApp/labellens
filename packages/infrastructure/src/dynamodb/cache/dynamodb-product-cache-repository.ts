@@ -2,7 +2,7 @@ import type { ProductCacheRepository } from "@labellens/application";
 import type { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
 import type { DynamoDbTableName } from "../table-name.js";
 import { DynamoDbJsonCache } from "./dynamodb-json-cache.js";
-import { productBarcodeCacheKey, productSearchCacheKey } from "./product-cache-keys.js";
+import { productBarcodeCacheKey, productBarcodePkPrefix, productSearchCacheKey } from "./product-cache-keys.js";
 
 const PRODUCT_CACHE_TTL_SECONDS = 30 * 60;
 
@@ -39,5 +39,11 @@ export class DynamoDbProductCacheRepository<TLookupResult, TSearchResult>
 
   async setSearch(query: string, value: TSearchResult): Promise<TSearchResult> {
     return this.searchCache.set(productSearchCacheKey(query), value);
+  }
+
+  async listBarcodes(limit: number): Promise<string[]> {
+    return (await this.barcodeCache.listPkValuesByPrefix(productBarcodePkPrefix(), limit)).map((pk) =>
+      pk.slice(productBarcodePkPrefix().length),
+    );
   }
 }

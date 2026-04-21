@@ -1,6 +1,10 @@
+export function productBarcodePkPrefix(): "PRODUCT#OFF#" {
+  return "PRODUCT#OFF#";
+}
+
 export function productBarcodeCacheKey(barcode: string): { PK: string; SK: string } {
   return {
-    PK: `PRODUCT#OFF#${barcode}`,
+    PK: `${productBarcodePkPrefix()}${barcode}`,
     SK: "DETAIL",
   };
 }

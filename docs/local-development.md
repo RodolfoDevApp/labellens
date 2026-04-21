@@ -47,8 +47,8 @@ npm run local:persistence:smoke
 - The reported storage driver is `dynamodb`.
 - `LabelLensTable` exists in LocalStack.
 - TTL uses `expiresAt`.
-- SQS queues and DLQs exist.
-- Redrive policies are configured.
+- The four sealed SQS queues and four DLQs exist.
+- Redrive policies are configured with max receive count `3`.
 
 `local:persistence:smoke` saves a menu and favorite through the gateway, restarts `menu-service` and `favorites-service`, then reads the data again through the gateway. If the data survives, persistence is outside process memory.
 
@@ -61,8 +61,10 @@ npm run build -w @labellens/application
 npm run build:infrastructure
 npm run build:services
 npm run build:gateway
+npm run build:workers
 npm run test:services
 npm run test:gateway
+npm run test:workers
 npm run generate:openapi
 npm run check:openapi
 npm run build:web
@@ -77,20 +79,36 @@ npm run compose:logs:product-service
 npm run compose:logs:menu-service
 npm run compose:logs:favorites-service
 npm run compose:logs:auth-service
+npm run compose:logs:product-not-found-worker
+npm run compose:logs:analytics-worker
+npm run compose:logs:food-cache-refresh-worker
+npm run compose:logs:product-cache-refresh-worker
+npm run compose:logs:dlq-handler
 npm run compose:logs:localstack
 ```
 
 ## Phase 7 local messaging smoke
 
-Phase 7 uses real local messaging for `product.not_found.v1`.
+Phase 7 uses real local messaging for operational async events.
 
-Runtime path:
+Runtime paths:
 
 ```txt
 product-service -> SQS labellens-product-not-found-queue -> product-not-found-worker -> DynamoDB LabelLensTable
+food/menu/product/favorites services -> SQS labellens-analytics-queue -> analytics-worker -> DynamoDB LabelLensTable
+EventBridge-style message -> SQS labellens-food-cache-refresh-queue -> food-cache-refresh-worker -> food-service internal refresh -> DynamoDB cache
+EventBridge-style message -> SQS labellens-product-cache-refresh-queue -> product-cache-refresh-worker -> product-service internal refresh -> DynamoDB cache
+DLQ queues -> dlq-handler -> DynamoDB OPS#DLQ#
 ```
 
-The product lookup response must not depend on the queue being processed. Missing barcode scans still return `404 product.not_found` through the gateway. The worker consumes the SQS message asynchronously and records an operational item with `PK=OPS#PRODUCT_NOT_FOUND`.
+The public browser boundary remains the gateway. The cache refresh workers call private service routes only inside the Docker network:
+
+```txt
+POST /internal/cache/refresh/food
+POST /internal/cache/refresh/product
+```
+
+Those routes are not exposed through the gateway.
 
 Verify the local event flow with:
 
@@ -98,33 +116,11 @@ Verify the local event flow with:
 npm run compose:up
 npm run local:resources:check
 npm run local:events:smoke
-```
-
-Useful logs:
-
-```powershell
-npm run compose:logs:product-service
-npm run compose:logs:product-not-found-worker
-npm run compose:logs:localstack
-```
-
-## Fase 7B: analytics async local
-
-El flujo local de analytics es no crítico y no debe bloquear respuestas HTTP. Los producers publican a `labellens-analytics-queue` y el `analytics-worker` consume la cola para registrar eventos operativos en DynamoDB bajo `PK=OPS#ANALYTICS`.
-
-Eventos cerrados en esta fase:
-
-| Evento | Producer | Cola | Consumer | Persistencia |
-|---|---|---|---|---|
-| `food.searched.v1` | `food-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
-| `product.scanned.v1` | `product-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
-| `menu.saved.v1` | `menu-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
-| `favorite.saved.v1` | `favorites-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
-
-Validación:
-
-```powershell
 npm run local:analytics:smoke
+npm run local:cache-refresh:smoke
+npm run local:dlq:smoke
 ```
 
-El smoke publica los cuatro eventos pasando por gateway y verifica que el worker los registre en DynamoDB.
+`local:cache-refresh:smoke` primes food/product detail cache through the gateway, publishes scheduler-style refresh messages to the refresh queues, and verifies the refresh workers updated the cached detail records.
+
+`local:dlq:smoke` publishes a controlled message directly to a DLQ and verifies `dlq-handler` records it under `PK=OPS#DLQ#`.

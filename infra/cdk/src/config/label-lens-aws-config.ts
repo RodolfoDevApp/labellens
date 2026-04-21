@@ -26,6 +26,9 @@ export const serviceContainerRepositoryNames = [
   "favorites-service",
   "product-not-found-worker",
   "analytics-worker",
+  "food-cache-refresh-worker",
+  "product-cache-refresh-worker",
+  "dlq-handler",
 ] as const;
 
 export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsConfig {

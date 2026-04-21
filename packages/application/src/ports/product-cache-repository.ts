@@ -3,4 +3,5 @@ export interface ProductCacheRepository<TLookupResult, TSearchResult> {
   setBarcode(barcode: string, value: TLookupResult): Promise<TLookupResult>;
   getSearch(query: string): Promise<TSearchResult | null>;
   setSearch(query: string, value: TSearchResult): Promise<TSearchResult>;
+  listBarcodes(limit: number): Promise<string[]>;
 }

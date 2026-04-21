@@ -5,9 +5,13 @@ export function foodSearchCacheKey(query: string, page: number): { PK: string; S
   };
 }
 
+export function foodDetailPkPrefix(): "FOOD#USDA#" {
+  return "FOOD#USDA#";
+}
+
 export function foodDetailCacheKey(fdcId: string): { PK: string; SK: string } {
   return {
-    PK: `FOOD#USDA#${fdcId}`,
+    PK: `${foodDetailPkPrefix()}${fdcId}`,
     SK: "DETAIL",
   };
 }

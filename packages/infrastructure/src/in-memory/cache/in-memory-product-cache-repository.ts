@@ -54,6 +54,10 @@ export class InMemoryProductCacheRepository<TLookupResult, TSearchResult>
     return value;
   }
 
+  async listBarcodes(limit: number): Promise<string[]> {
+    return Array.from(this.barcodeCache.keys()).slice(0, Math.max(0, limit));
+  }
+
   clear(): void {
     this.barcodeCache.clear();
     this.searchCache.clear();

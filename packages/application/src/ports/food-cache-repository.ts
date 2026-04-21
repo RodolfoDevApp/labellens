@@ -3,4 +3,5 @@ export interface FoodCacheRepository<TSearchResult, TDetailResult> {
   setSearch(query: string, page: number, value: TSearchResult): Promise<TSearchResult>;
   getDetail(fdcId: string): Promise<TDetailResult | null>;
   setDetail(fdcId: string, value: TDetailResult): Promise<TDetailResult>;
+  listDetailIds(limit: number): Promise<string[]>;
 }

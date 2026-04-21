@@ -20,6 +20,10 @@ class EmptyProductCache implements ProductCacheRepository<ProductLookupResponse,
   async setSearch(_query: string, value: ProductSearchResponse): Promise<ProductSearchResponse> {
     return value;
   }
+
+  async listBarcodes(): Promise<string[]> {
+    return [];
+  }
 }
 
 function createEmptyProductProvider(): ProductProvider {

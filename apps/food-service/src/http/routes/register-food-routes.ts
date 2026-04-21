@@ -3,7 +3,39 @@ import { foodSearchQuerySchema, requiredIdParamSchema } from "@labellens/contrac
 import { problemDetails, type ServiceBindings } from "@labellens/service-support";
 import type { FoodServiceDependencies } from "../../composition/food-service-dependencies.js";
 
+function normalizeLimit(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    return 50;
+  }
+
+  return Math.min(500, Math.floor(value));
+}
+
 export function registerFoodRoutes(app: Hono<ServiceBindings>, dependencies: FoodServiceDependencies): void {
+  app.post("/internal/cache/refresh/food", async (c) => {
+    const correlationId = c.get("correlationId");
+    const body = await c.req.json().catch(() => ({}));
+    const limit = normalizeLimit(typeof body === "object" && body !== null ? (body as { limit?: unknown }).limit : undefined);
+
+    try {
+      return c.json({
+        correlationId,
+        result: await dependencies.useCases.refreshFoodCache.execute({ limit }),
+      });
+    } catch (error) {
+      return c.json(
+        problemDetails({
+          title: "Food cache refresh failed",
+          status: 503,
+          detail: error instanceof Error ? error.message : "Food cache refresh failed.",
+          code: "foods.cache_refresh.failed",
+          correlationId,
+        }),
+        503,
+      );
+    }
+  });
+
   app.get("/api/v1/foods/search", async (c) => {
     const correlationId = c.get("correlationId");
     const parsed = foodSearchQuerySchema.safeParse({

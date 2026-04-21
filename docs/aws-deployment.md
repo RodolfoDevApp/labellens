@@ -8,7 +8,9 @@ The CDK stack creates:
 
 - `LabelLensTable` equivalent: DynamoDB single-table design with `PK`, `SK` and TTL on `expiresAt`.
 - `product.not_found.v1` queue and DLQ with max receive count `3`.
-- analytics queue and DLQ with max receive count `5`.
+- analytics queue and DLQ with max receive count `3`.
+- food-cache-refresh queue and DLQ with max receive count `3`.
+- product-cache-refresh queue and DLQ with max receive count `3`.
 - CloudWatch alarms for DLQs and queue age.
 - ECR repositories for:
   - gateway
@@ -19,11 +21,14 @@ The CDK stack creates:
   - favorites-service
   - product-not-found-worker
   - analytics-worker
+  - food-cache-refresh-worker
+  - product-cache-refresh-worker
+  - dlq-handler
 - SSM parameters for resource names, ARNs and runtime discovery.
 
 ## Why compute is not in this patch
 
-The repo does not yet contain production Dockerfiles or a build/push pipeline for the services and workers. Creating ECS services or Lambda functions now would force the IaC to reference images that do not exist. That would be fake infrastructure.
+The repo still does not contain production Dockerfiles or a build/push pipeline for the services and workers. Creating ECS services or Lambda functions now would force the IaC to reference images that do not exist. That would be fake infrastructure.
 
 The next AWS phase should add:
 
@@ -31,7 +36,8 @@ The next AWS phase should add:
 2. image build/push scripts or CI workflow,
 3. ECS/Fargate private services behind gateway,
 4. Lambda or containerized workers wired to SQS,
-5. least-privilege IAM roles for each service.
+5. least-privilege IAM roles for each service,
+6. EventBridge Scheduler rules for the two cache-refresh queues.
 
 ## Commands
 

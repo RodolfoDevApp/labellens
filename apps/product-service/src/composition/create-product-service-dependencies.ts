@@ -9,6 +9,7 @@ import {
 } from "@labellens/infrastructure";
 import { LookupProductByBarcodeQuery } from "../application/lookup-product-by-barcode-query.js";
 import type { ProductLookupResponse, ProductSearchResponse, ProductSourceMode } from "../application/product-service-responses.js";
+import { RefreshProductCacheCommand } from "../application/refresh-product-cache-command.js";
 import { SearchProductsQuery } from "../application/search-products-query.js";
 import { readProductServiceConfig } from "../config/product-service-config.js";
 import { FixtureProductProvider } from "../infrastructure/fixtures/fixture-product-provider.js";
@@ -52,6 +53,7 @@ export function createProductServiceDependencies(): ProductServiceDependencies {
   return {
     useCases: {
       lookupProductByBarcode: new LookupProductByBarcodeQuery(sourceMode, cache, provider, eventPublisher),
+      refreshProductCache: new RefreshProductCacheCommand(cache, provider),
       searchProducts: new SearchProductsQuery(sourceMode, cache, provider),
     },
   };
