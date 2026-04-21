@@ -7,6 +7,7 @@ import {
 } from "@labellens/infrastructure";
 import { HandleProductNotFoundMessageCommand } from "../application/handle-product-not-found-message-command.js";
 import { readProductNotFoundWorkerConfig } from "../config/product-not-found-worker-config.js";
+import { ProductNotFoundSqsMessageHandler } from "../infrastructure/sqs/product-not-found-sqs-message-handler.js";
 import type { ProductNotFoundWorkerDependencies } from "./product-not-found-worker-dependencies.js";
 
 export function createProductNotFoundWorkerDependencies(): ProductNotFoundWorkerDependencies {
@@ -23,6 +24,7 @@ export function createProductNotFoundWorkerDependencies(): ProductNotFoundWorker
   );
   const repository = new DynamoDbProductNotFoundRepository(dynamoDb, config.labelLensTableName);
   const command = new HandleProductNotFoundMessageCommand(new RecordProductNotFoundCommand(repository));
+  const messageHandler = new ProductNotFoundSqsMessageHandler(command);
 
   return {
     consumer: new SqsPollingConsumer(
@@ -33,7 +35,7 @@ export function createProductNotFoundWorkerDependencies(): ProductNotFoundWorker
         waitTimeSeconds: config.waitTimeSeconds,
         visibilityTimeoutSeconds: config.visibilityTimeoutSeconds,
       },
-      (message) => command.execute(message),
+      (message) => messageHandler.handle(message),
     ),
   };
 }

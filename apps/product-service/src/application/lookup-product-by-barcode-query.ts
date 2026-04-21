@@ -44,21 +44,11 @@ export class LookupProductByBarcodeQuery {
   }
 
   private publishProductNotFound(input: LookupProductByBarcodeInput): void {
-    const event = createProductNotFoundEvent({
-      barcode: input.barcode,
-      correlationId: input.correlationId,
-    });
-
-    void this.eventPublisher.publish(event).catch((error: unknown) => {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          message: "product.not_found.publish.failed",
-          eventId: event.eventId,
-          correlationId: event.correlationId,
-          error: error instanceof Error ? error.message : "Unknown event publish error.",
-        }),
-      );
-    });
+    void this.eventPublisher.publish(
+      createProductNotFoundEvent({
+        barcode: input.barcode,
+        correlationId: input.correlationId,
+      }),
+    );
   }
 }
