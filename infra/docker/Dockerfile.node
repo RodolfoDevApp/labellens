@@ -1,0 +1,76 @@
+# syntax=docker/dockerfile:1.7
+
+FROM node:24-bookworm-slim AS deps
+
+ENV CI=true \
+    NODE_ENV=development \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false
+
+WORKDIR /workspace
+
+COPY package.json package-lock.json ./
+
+COPY apps/analytics-worker/package.json apps/analytics-worker/package.json
+COPY apps/auth-service/package.json apps/auth-service/package.json
+COPY apps/dlq-handler/package.json apps/dlq-handler/package.json
+COPY apps/favorites-service/package.json apps/favorites-service/package.json
+COPY apps/food-cache-refresh-worker/package.json apps/food-cache-refresh-worker/package.json
+COPY apps/food-service/package.json apps/food-service/package.json
+COPY apps/gateway/package.json apps/gateway/package.json
+COPY apps/menu-service/package.json apps/menu-service/package.json
+COPY apps/product-cache-refresh-worker/package.json apps/product-cache-refresh-worker/package.json
+COPY apps/product-not-found-worker/package.json apps/product-not-found-worker/package.json
+COPY apps/product-service/package.json apps/product-service/package.json
+COPY apps/web/package.json apps/web/package.json
+
+COPY packages/application/package.json packages/application/package.json
+COPY packages/contracts/package.json packages/contracts/package.json
+COPY packages/domain/package.json packages/domain/package.json
+COPY packages/infrastructure/package.json packages/infrastructure/package.json
+COPY packages/service-support/package.json packages/service-support/package.json
+
+COPY infra/cdk/package.json infra/cdk/package.json
+
+RUN --mount=type=cache,target=/root/.npm npm ci
+
+FROM deps AS build
+
+ARG WORKSPACE
+ARG PACKAGE_PATH
+
+COPY apps ./apps
+COPY packages ./packages
+COPY infra ./infra
+
+RUN npm run build:core && npm run build -w ${WORKSPACE}
+RUN npm prune --omit=dev --workspaces --include-workspace-root
+
+FROM node:24-bookworm-slim AS runtime
+
+ARG PACKAGE_PATH
+ARG SERVICE_NAME
+ARG SERVICE_PORT=0
+
+ENV NODE_ENV=production \
+    NPM_CONFIG_UPDATE_NOTIFIER=false \
+    NPM_CONFIG_FUND=false \
+    NPM_CONFIG_AUDIT=false \
+    SERVICE_NAME=${SERVICE_NAME}
+
+WORKDIR /workspace
+
+COPY --from=build --chown=node:node /workspace/package.json ./package.json
+COPY --from=build --chown=node:node /workspace/package-lock.json ./package-lock.json
+COPY --from=build --chown=node:node /workspace/node_modules ./node_modules
+COPY --from=build --chown=node:node /workspace/packages ./packages
+COPY --from=build --chown=node:node /workspace/apps ./apps
+
+WORKDIR /workspace/${PACKAGE_PATH}
+
+USER node
+
+EXPOSE ${SERVICE_PORT}
+
+CMD ["npm", "run", "start"]

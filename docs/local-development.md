@@ -124,3 +124,19 @@ npm run local:dlq:smoke
 `local:cache-refresh:smoke` primes food/product detail cache through the gateway, publishes scheduler-style refresh messages to the refresh queues, and verifies the refresh workers updated the cached detail records.
 
 `local:dlq:smoke` publishes a controlled message directly to a DLQ and verifies `dlq-handler` records it under `PK=OPS#DLQ#`.
+
+## Production-style container checks
+
+The local compose stack remains a development runtime: it mounts the repository and runs `dev:*` scripts. Phase 8B adds a separate production-style container foundation for the AWS/ECR path.
+
+Run the static container check without needing AWS:
+
+```powershell
+npm run containers:check
+```
+
+Build a single local production image when Docker is available:
+
+```powershell
+npm run containers:build -- -Image gateway -Tag local
+```

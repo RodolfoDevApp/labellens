@@ -67,3 +67,28 @@ Do not run deploy commands until the account, region, billing alerts and bootstr
 2. Add image build/push automation for the ECR repositories.
 3. Add deployed compute for the private services and async workers.
 4. Add API Gateway/Cognito/public boundary after compute is deployable.
+
+## Phase 8B container foundation
+
+The repository now includes production-style container foundation files under `infra/docker`:
+
+- `Dockerfile.node`: shared multi-stage Node 24 Dockerfile for services and workers.
+- `services.json`: deployable image manifest matching the CDK ECR repository names.
+- `build-images.ps1`: local Docker image build script.
+- `tag-images.ps1`: future ECR tag script.
+- `push-images.ps1`: future ECR push script.
+- `check-container-foundation.ps1`: static validation for Dockerfile, manifest and package start scripts.
+
+Local checks do not require AWS:
+
+```powershell
+npm run containers:check
+npm run containers:build -- -Image gateway -Tag local
+```
+
+ECR tagging/pushing requires an AWS account, AWS CLI credentials and CDK-created ECR repositories:
+
+```powershell
+npm run containers:tag -- -AccountId 123456789012 -Region us-east-1 -Environment dev -LocalTag local -RemoteTag latest
+npm run containers:push -- -AccountId 123456789012 -Region us-east-1 -Environment dev -RemoteTag latest
+```

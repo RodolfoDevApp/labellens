@@ -1,0 +1,13 @@
+[
+  {"name":"gateway","workspace":"@labellens/gateway","packagePath":"apps/gateway","kind":"service","port":4000},
+  {"name":"auth-service","workspace":"@labellens/auth-service","packagePath":"apps/auth-service","kind":"service","port":4105},
+  {"name":"food-service","workspace":"@labellens/food-service","packagePath":"apps/food-service","kind":"service","port":4101},
+  {"name":"product-service","workspace":"@labellens/product-service","packagePath":"apps/product-service","kind":"service","port":4102},
+  {"name":"menu-service","workspace":"@labellens/menu-service","packagePath":"apps/menu-service","kind":"service","port":4103},
+  {"name":"favorites-service","workspace":"@labellens/favorites-service","packagePath":"apps/favorites-service","kind":"service","port":4104},
+  {"name":"product-not-found-worker","workspace":"@labellens/product-not-found-worker","packagePath":"apps/product-not-found-worker","kind":"worker"},
+  {"name":"analytics-worker","workspace":"@labellens/analytics-worker","packagePath":"apps/analytics-worker","kind":"worker"},
+  {"name":"food-cache-refresh-worker","workspace":"@labellens/food-cache-refresh-worker","packagePath":"apps/food-cache-refresh-worker","kind":"worker"},
+  {"name":"product-cache-refresh-worker","workspace":"@labellens/product-cache-refresh-worker","packagePath":"apps/product-cache-refresh-worker","kind":"worker"},
+  {"name":"dlq-handler","workspace":"@labellens/dlq-handler","packagePath":"apps/dlq-handler","kind":"worker"}
+]

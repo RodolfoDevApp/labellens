@@ -90,7 +90,11 @@
     "compose:logs:food-cache-refresh-worker": "docker compose -f infra/compose/docker-compose.yml logs -f food-cache-refresh-worker",
     "compose:logs:product-cache-refresh-worker": "docker compose -f infra/compose/docker-compose.yml logs -f product-cache-refresh-worker",
     "compose:logs:dlq-handler": "docker compose -f infra/compose/docker-compose.yml logs -f dlq-handler",
-    "local:dlq:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-dlq-handler.ps1"
+    "local:dlq:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-dlq-handler.ps1",
+    "containers:check": "powershell -ExecutionPolicy Bypass -File infra/docker/check-container-foundation.ps1",
+    "containers:build": "powershell -ExecutionPolicy Bypass -File infra/docker/build-images.ps1",
+    "containers:tag": "powershell -ExecutionPolicy Bypass -File infra/docker/tag-images.ps1",
+    "containers:push": "powershell -ExecutionPolicy Bypass -File infra/docker/push-images.ps1"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

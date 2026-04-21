@@ -61,3 +61,16 @@ All consumers use the common `LabelLensEvent` envelope with `eventId`, `eventTyp
 1. Add AWS event source mappings and schedules when moving from local workers to deployed compute.
 2. Add production Dockerfile/build pipeline before creating ECS services or Lambda container images.
 3. Add API Gateway/Cognito/ECS/Fargate only after the local async contract remains green.
+
+## Phase 8B status
+
+Phase 8B prepares the container build foundation for AWS without requiring an AWS account yet. The scope is limited to Dockerfile/manifest/scripts/start commands for the backend services and async workers already represented in CDK ECR repositories.
+
+Validation target:
+
+```powershell
+npm run containers:check
+npm run containers:build -- -Image gateway -Tag local
+```
+
+The account becomes necessary when tagging/pushing to ECR or deploying compute.
