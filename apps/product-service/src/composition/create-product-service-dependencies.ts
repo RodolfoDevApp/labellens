@@ -1,7 +1,11 @@
 import {
   createDynamoDbDocumentClient,
+  createSqsClient,
   DynamoDbProductCacheRepository,
   InMemoryProductCacheRepository,
+  NoopEventPublisher,
+  SafeEventPublisher,
+  SqsEventPublisher,
 } from "@labellens/infrastructure";
 import { LookupProductByBarcodeQuery } from "../application/lookup-product-by-barcode-query.js";
 import type { ProductLookupResponse, ProductSearchResponse, ProductSourceMode } from "../application/product-service-responses.js";
@@ -28,10 +32,24 @@ export function createProductServiceDependencies(): ProductServiceDependencies {
         config.labelLensTableName,
       )
     : new InMemoryProductCacheRepository<ProductLookupResponse, ProductSearchResponse>();
+  const eventPublisher = config.productNotFoundQueueUrl
+    ? new SafeEventPublisher(
+        new SqsEventPublisher(
+          createSqsClient(
+            config.awsEndpointUrl
+              ? { endpoint: config.awsEndpointUrl, region: config.awsRegion }
+              : { region: config.awsRegion },
+          ),
+          {
+            "product.not_found.v1": config.productNotFoundQueueUrl,
+          },
+        ),
+      )
+    : new NoopEventPublisher();
 
   return {
     useCases: {
-      lookupProductByBarcode: new LookupProductByBarcodeQuery(sourceMode, cache, provider),
+      lookupProductByBarcode: new LookupProductByBarcodeQuery(sourceMode, cache, provider, eventPublisher),
       searchProducts: new SearchProductsQuery(sourceMode, cache, provider),
     },
   };

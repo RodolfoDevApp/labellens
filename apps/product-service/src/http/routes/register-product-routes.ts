@@ -23,7 +23,10 @@ export function registerProductRoutes(app: Hono<ServiceBindings>, dependencies: 
     }
 
     try {
-      const result = await dependencies.useCases.lookupProductByBarcode.execute(parsed.data);
+      const result = await dependencies.useCases.lookupProductByBarcode.execute({
+        barcode: parsed.data,
+        correlationId,
+      });
 
       if (!result) {
         return c.json(

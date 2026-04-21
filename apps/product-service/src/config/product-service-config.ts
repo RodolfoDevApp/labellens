@@ -19,6 +19,16 @@ function readNumber(name: string, fallback: number): number {
   return parsed;
 }
 
+function readOptionalUrl(name: string): string | undefined {
+  const raw = process.env[name];
+
+  if (!raw) {
+    return undefined;
+  }
+
+  return raw;
+}
+
 export type ProductServiceConfig = {
   port: number;
   storageDriver: StorageDriver;
@@ -27,6 +37,7 @@ export type ProductServiceConfig = {
   labelLensTableName: string;
   openFoodFactsMode: string;
   openFoodFactsUserAgent: string;
+  productNotFoundQueueUrl?: string;
 };
 
 export function readProductServiceConfig(): ProductServiceConfig {
@@ -41,8 +52,15 @@ export function readProductServiceConfig(): ProductServiceConfig {
       "LabelLens/0.1 (https://localhost; contact: dev@labellens.local)",
   };
 
-  if (process.env.AWS_ENDPOINT_URL) {
-    config.awsEndpointUrl = process.env.AWS_ENDPOINT_URL;
+  const awsEndpointUrl = readOptionalUrl("AWS_ENDPOINT_URL");
+  const productNotFoundQueueUrl = readOptionalUrl("PRODUCT_NOT_FOUND_QUEUE_URL");
+
+  if (awsEndpointUrl) {
+    config.awsEndpointUrl = awsEndpointUrl;
+  }
+
+  if (productNotFoundQueueUrl) {
+    config.productNotFoundQueueUrl = productNotFoundQueueUrl;
   }
 
   return config;

@@ -79,3 +79,31 @@ npm run compose:logs:favorites-service
 npm run compose:logs:auth-service
 npm run compose:logs:localstack
 ```
+
+## Phase 7 local messaging smoke
+
+Phase 7 uses real local messaging for `product.not_found.v1`.
+
+Runtime path:
+
+```txt
+product-service -> SQS labellens-product-not-found-queue -> product-not-found-worker -> DynamoDB LabelLensTable
+```
+
+The product lookup response must not depend on the queue being processed. Missing barcode scans still return `404 product.not_found` through the gateway. The worker consumes the SQS message asynchronously and records an operational item with `PK=OPS#PRODUCT_NOT_FOUND`.
+
+Verify the local event flow with:
+
+```powershell
+npm run compose:up
+npm run local:resources:check
+npm run local:events:smoke
+```
+
+Useful logs:
+
+```powershell
+npm run compose:logs:product-service
+npm run compose:logs:product-not-found-worker
+npm run compose:logs:localstack
+```

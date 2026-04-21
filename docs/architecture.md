@@ -45,3 +45,20 @@ Only `gateway` is a public backend entrypoint. The business services are private
 - Services verify protected requests independently using the current auth verifier.
 - Data persistence is through DynamoDB adapters when `STORAGE_DRIVER=dynamodb`.
 - `apps/api` has been removed as the monolithic backend. Its responsibilities are split across the services above.
+
+
+## Phase 7 messaging boundary
+
+LabelLens does not use Kafka, RabbitMQ, SNS or an EventBridge event bus in v1. Local/AWS messaging is SQS + DLQ only, with EventBridge Scheduler reserved for later scheduled cache refresh jobs.
+
+Current implemented event flow:
+
+```txt
+product-service
+  -> publishes product.not_found.v1
+  -> labellens-product-not-found-queue
+  -> product-not-found-worker
+  -> DynamoDB LabelLensTable / OPS#PRODUCT_NOT_FOUND
+```
+
+The producer is `product-service`. The consumer is `product-not-found-worker`. The event is operational; it must never block the barcode lookup response. Duplicate SQS delivery is handled by saving records idempotently by `eventId`.

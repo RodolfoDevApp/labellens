@@ -58,7 +58,14 @@
     "compose:logs:food-service": "docker compose -f infra/compose/docker-compose.yml logs -f food-service",
     "compose:logs:product-service": "docker compose -f infra/compose/docker-compose.yml logs -f product-service",
     "compose:logs:menu-service": "docker compose -f infra/compose/docker-compose.yml logs -f menu-service",
-    "compose:logs:favorites-service": "docker compose -f infra/compose/docker-compose.yml logs -f favorites-service"
+    "compose:logs:favorites-service": "docker compose -f infra/compose/docker-compose.yml logs -f favorites-service",
+    "dev:product-not-found-worker": "npm run dev -w @labellens/product-not-found-worker",
+    "build:product-not-found-worker": "npm run build -w @labellens/product-not-found-worker",
+    "build:workers": "npm run build:product-not-found-worker",
+    "test:product-not-found-worker": "npm run test -w @labellens/product-not-found-worker",
+    "test:workers": "npm run test:product-not-found-worker",
+    "local:events:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-product-not-found-event.ps1",
+    "compose:logs:product-not-found-worker": "docker compose -f infra/compose/docker-compose.yml logs -f product-not-found-worker"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

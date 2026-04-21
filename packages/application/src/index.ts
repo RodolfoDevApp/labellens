@@ -18,3 +18,7 @@ export * from "./menus/queries/list-menus-query.js";
 export * from "./menus/types/menu-calculation-response.js";
 export * from "./menus/types/menu-calculation-warning.js";
 export { createFavoriteId, parseFavoriteId } from "./favorites/favorite-id.js";
+export * from "./events/product-not-found-event.js";
+export * from "./ops/commands/record-product-not-found-command.js";
+export * from "./ops/types/product-not-found-record.js";
+export * from "./ports/product-not-found-repository.js";
