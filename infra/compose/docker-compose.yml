@@ -1,36 +1,90 @@
 services:
+  deps:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm ci"
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+
   gateway:
     image: node:24-bookworm-slim
     working_dir: /workspace
-    command: sh -c "npm install && npm run dev:gateway"
+    command: sh -c "npm run dev:gateway"
     environment:
       PORT: 4000
-      LABEL_LENS_API_INTERNAL_URL: http://api:4100
+      STORAGE_DRIVER: dynamodb
+      LABEL_LENS_AUTH_SERVICE_URL: http://auth-service:4105
+      LABEL_LENS_FOOD_SERVICE_URL: http://food-service:4101
+      LABEL_LENS_PRODUCT_SERVICE_URL: http://product-service:4102
+      LABEL_LENS_MENU_SERVICE_URL: http://menu-service:4103
+      LABEL_LENS_FAVORITES_SERVICE_URL: http://favorites-service:4104
       GATEWAY_ALLOWED_ORIGINS: http://localhost:${LABEL_LENS_WEB_PORT:-3000},http://localhost:3000,http://localhost:3001
     ports:
       - "${LABEL_LENS_GATEWAY_PORT:-4000}:4000"
     volumes:
       - ../..:/workspace
+      - node_modules:/workspace/node_modules
     depends_on:
-      api:
+      deps:
+        condition: service_completed_successfully
+      auth-service:
         condition: service_healthy
+        restart: true
+      food-service:
+        condition: service_healthy
+        restart: true
+      product-service:
+        condition: service_healthy
+        restart: true
+      menu-service:
+        condition: service_healthy
+        restart: true
+      favorites-service:
+        condition: service_healthy
+        restart: true
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "node -e \"fetch('http://localhost:4000/gateway/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+          "node -e \"fetch('http://localhost:4000/gateway/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
         ]
       interval: 5s
       timeout: 3s
       retries: 30
       start_period: 10s
 
-  api:
+  auth-service:
     image: node:24-bookworm-slim
     working_dir: /workspace
-    command: sh -c "npm install && npm run dev:api"
+    command: sh -c "npm run dev:auth-service"
     environment:
-      PORT: 4100
+      PORT: 4105
+    expose:
+      - "4105"
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:4105/service/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  food-service:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:food-service"
+    environment:
+      PORT: 4101
       STORAGE_DRIVER: dynamodb
       AWS_ENDPOINT_URL: http://localstack:4566
       AWS_REGION: us-east-1
@@ -39,17 +93,124 @@ services:
       LABEL_LENS_TABLE: LabelLensTable
       USDA_API_KEY: ${USDA_API_KEY:-}
     expose:
-      - "4100"
+      - "4101"
     volumes:
       - ../..:/workspace
+      - node_modules:/workspace/node_modules
     depends_on:
+      deps:
+        condition: service_completed_successfully
       localstack:
         condition: service_healthy
+        restart: true
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          "node -e \"fetch('http://localhost:4100/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+          "node -e \"fetch('http://localhost:4101/service/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  product-service:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:product-service"
+    environment:
+      PORT: 4102
+      STORAGE_DRIVER: dynamodb
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+      OPEN_FOOD_FACTS_MODE: ${OPEN_FOOD_FACTS_MODE:-fixture}
+    expose:
+      - "4102"
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:4102/service/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  menu-service:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:menu-service"
+    environment:
+      PORT: 4103
+      STORAGE_DRIVER: dynamodb
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+    expose:
+      - "4103"
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:4103/service/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  favorites-service:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:favorites-service"
+    environment:
+      PORT: 4104
+      STORAGE_DRIVER: dynamodb
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+    expose:
+      - "4104"
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://localhost:4104/service/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""
         ]
       interval: 5s
       timeout: 3s
@@ -59,16 +220,20 @@ services:
   web:
     image: node:24-bookworm-slim
     working_dir: /workspace
-    command: sh -c "npm install && npm run dev:web"
+    command: sh -c "npm run dev:web"
     environment:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:${LABEL_LENS_GATEWAY_PORT:-4000}
     ports:
       - "${LABEL_LENS_WEB_PORT:-3000}:3000"
     volumes:
       - ../..:/workspace
+      - node_modules:/workspace/node_modules
     depends_on:
+      deps:
+        condition: service_completed_successfully
       gateway:
         condition: service_healthy
+        restart: true
 
   localstack:
     image: localstack/localstack:3
@@ -101,6 +266,8 @@ services:
     depends_on:
       localstack:
         condition: service_healthy
+        restart: true
 
 volumes:
   localstack-data:
+  node_modules:

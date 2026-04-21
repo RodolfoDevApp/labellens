@@ -15,6 +15,7 @@
     "@labellens/domain": "0.1.0"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@types/node": "^24.10.1"
   }
 }

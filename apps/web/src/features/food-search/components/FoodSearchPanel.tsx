@@ -148,7 +148,7 @@ export function FoodSearchPanel() {
 
         {status === "error" && (
           <div className="rounded-3xl border border-[#f0d2c7] bg-[#fff0ea] p-5 text-sm font-bold text-[#9b392f]">
-            Could not connect to the local API. Make sure apps/api is running on port 4000.
+            Could not connect to the local gateway. Make sure Docker compose is running and the gateway is available on port 4000.
             {errorMessage ? <p className="mt-2 text-xs">{errorMessage}</p> : null}
           </div>
         )}

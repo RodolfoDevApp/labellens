@@ -1,17 +1,22 @@
 # Refactor plan: persistence and mixed architecture
 
-## Current state
+## Current state after Phase 6
 
-The product flow exists, but backend persistence is still simulated:
+The local backend is no longer a single monolithic API app. The public backend boundary is `apps/gateway`, and business endpoints are split into private services:
 
-- `apps/api/src/menus/persistence/menu-store.ts` uses in-memory `Map` storage.
-- `apps/api/src/favorites/persistence/favorite-store.ts` uses in-memory `Map` storage.
-- `apps/api/src/foods/food-cache.ts` uses in-memory cache.
-- `apps/api/src/products/product-cache.ts` uses in-memory cache.
-- `apps/api/src/auth/dev-auth.ts` signs and reads local development tokens.
-- Docker/LocalStack exists, but the API does not yet write to DynamoDB.
+- `apps/auth-service`: local demo auth endpoints.
+- `apps/food-service`: USDA search/detail and food cache.
+- `apps/product-service`: Open Food Facts barcode/search fallback and product cache.
+- `apps/menu-service`: menu calculation and saved-menu CRUD.
+- `apps/favorites-service`: favorite save/list/delete.
 
-That means Docker is not wrong, but it is not yet connected to the backend. The next useful work is repository ports and DynamoDB adapters, not more UI surface.
+The old `apps/api` monolith is removed. Shared rules live in packages:
+
+- `@labellens/domain`: pure domain model and nutrition calculations.
+- `@labellens/application`: commands, queries and ports.
+- `@labellens/contracts`: schemas, client contracts and OpenAPI.
+- `@labellens/infrastructure`: DynamoDB, in-memory adapters, local auth and events.
+- `@labellens/service-support`: HTTP support shared by private services.
 
 ## Scope kept for v1
 
@@ -31,89 +36,17 @@ That means Docker is not wrong, but it is not yet connected to the backend. The 
 - Export/PDF jobs.
 - Product recommendation or “better option” ranking.
 
-## First refactor step
-
-Create interfaces before replacing storage:
-
-```ts
-export interface SavedMenuRepository {
-  save(input: SaveMenuInput): SavedMenu;
-  update(input: UpdateMenuInput): SavedMenu | null;
-  list(ownerId: string): SavedMenu[];
-  get(ownerId: string, menuId: string): SavedMenu | null;
-  delete(ownerId: string, menuId: string): boolean;
-}
-
-export interface FavoriteRepository {
-  save(input: SaveFavoriteInput): FavoriteItem;
-  list(ownerId: string): FavoriteItem[];
-  delete(ownerId: string, favoriteId: string): boolean;
-}
-```
-
-Then keep current behavior through:
-
-- `InMemorySavedMenuRepository`
-- `InMemoryFavoriteRepository`
-- `InMemoryFoodCacheRepository`
-- `InMemoryProductCacheRepository`
-
-After that, add:
-
-- `DynamoDbSavedMenuRepository`
-- `DynamoDbFavoriteRepository`
-- `DynamoDbFoodCacheRepository`
-- `DynamoDbProductCacheRepository`
-
-## DynamoDB single-table draft
+## Local runtime rule
 
 ```text
-PK=FOOD#USDA#<fdcId>
-SK=DETAIL
-expiresAt=<ttl>
-
-PK=PRODUCT#OFF#<barcode>
-SK=DETAIL
-expiresAt=<ttl>
-
-PK=USER#<userId>
-SK=MENU#<date>#<menuId>
-
-PK=USER#<userId>
-SK=FAVORITE#<source>#<sourceId>
+web -> gateway -> private services -> DynamoDB/SQS LocalStack
 ```
 
-Use TTL only for cache rows. Do not TTL saved menus or favorites.
+The browser must never call private services directly. Services expose only Docker-network ports. The gateway keeps `/api/v1/*` stable for the frontend.
 
-## Microservices
+## Next refactor steps
 
-Keep these as HTTP services once repository ports are stable:
-
-| Service | Responsibility |
-| --- | --- |
-| `food-service` | USDA search/detail, normalizer, food cache. |
-| `product-service` | OFF barcode lookup, normalizer, product cache. |
-| `menu-service` | calculate and persist menus. |
-| `favorites-service` | persist and reuse favorite foods/products. |
-
-## Lambdas
-
-Use Lambdas for async/operational work only:
-
-| Lambda | Responsibility |
-| --- | --- |
-| `food-cache-refresh` | Refresh popular USDA items. |
-| `product-cache-refresh` | Refresh popular OFF products. |
-| `missing-product-tracker` | Record barcode misses without blocking scan. |
-| `analytics-consumer` | Consume internal usage events. |
-| `dlq-handler` | Surface failed async jobs. |
-
-## Order of work
-
-1. Add repository interfaces and in-memory implementations.
-2. Inject repositories into route handlers/services.
-3. Add DynamoDB adapters against LocalStack.
-4. Wire docker compose seed/table scripts.
-5. Replace dev token verifier with an `AuthSessionVerifier` interface.
-6. Add Cognito verifier only after local persistence is stable.
-7. Split physical deployables after the service boundaries stop moving.
+1. Add service-level tests for food/product/menu/favorites/auth behavior.
+2. Add SQS event publisher adapter and route `product.not_found.v1` through the product service.
+3. Add local Lambda/worker runners for product-not-found and analytics queues.
+4. Add OpenAPI gateway/service routing documentation once workers are in place.

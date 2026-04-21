@@ -5,7 +5,7 @@ import { createUpstreamHeaders } from "./create-upstream-headers.js";
 import { shouldForwardBody } from "./should-forward-body.js";
 
 export type ProxyApiRequestOptions = {
-  apiInternalBaseUrl: string;
+  upstreamBaseUrl: string;
   fetchImpl?: typeof fetch;
 };
 
@@ -13,7 +13,7 @@ export async function proxyApiRequest(c: Context, options: ProxyApiRequestOption
   const fetchImpl = options.fetchImpl ?? fetch;
   const correlationId = c.get("correlationId") as string;
   const requestUrl = new URL(c.req.url);
-  const upstreamUrl = buildUpstreamUrl(options.apiInternalBaseUrl, requestUrl.pathname, requestUrl.searchParams.toString());
+  const upstreamUrl = buildUpstreamUrl(options.upstreamBaseUrl, requestUrl.pathname, requestUrl.searchParams.toString());
 
   try {
     const upstreamResponse = await fetchImpl(upstreamUrl, {
@@ -30,7 +30,7 @@ export async function proxyApiRequest(c: Context, options: ProxyApiRequestOption
         type: "about:blank",
         title: "Gateway upstream unavailable",
         status: 503,
-        detail: "The internal API service is not reachable from the gateway.",
+        detail: "The selected internal service is not reachable from the gateway.",
         code: "gateway.upstream_unavailable",
         correlationId,
       },

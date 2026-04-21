@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { GatewayServiceUrls } from "./gateway-service-urls.js";
 
 function readNumber(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -23,8 +24,9 @@ function readString(name: string, fallback: string): string {
 
 export type GatewayConfig = {
   port: number;
-  apiInternalBaseUrl: string;
   allowedOrigins: string[];
+  serviceUrls: GatewayServiceUrls;
+  storageDriver: string;
 };
 
 export function readGatewayConfig(): GatewayConfig {
@@ -38,7 +40,14 @@ export function readGatewayConfig(): GatewayConfig {
 
   return {
     port: readNumber("PORT", 4000),
-    apiInternalBaseUrl: readString("LABEL_LENS_API_INTERNAL_URL", "http://localhost:4100"),
     allowedOrigins,
+    storageDriver: readString("STORAGE_DRIVER", "in-memory"),
+    serviceUrls: {
+      auth: readString("LABEL_LENS_AUTH_SERVICE_URL", "http://localhost:4105"),
+      favorites: readString("LABEL_LENS_FAVORITES_SERVICE_URL", "http://localhost:4104"),
+      food: readString("LABEL_LENS_FOOD_SERVICE_URL", "http://localhost:4101"),
+      menu: readString("LABEL_LENS_MENU_SERVICE_URL", "http://localhost:4103"),
+      product: readString("LABEL_LENS_PRODUCT_SERVICE_URL", "http://localhost:4102"),
+    },
   };
 }

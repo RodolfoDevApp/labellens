@@ -67,7 +67,7 @@ function Wait-ApiReady {
     }
   }
 
-  throw "Gateway/API did not become ready at $BaseUrl. Run npm run compose:up and check npm run compose:logs:gateway and npm run compose:logs:api."
+  throw "Gateway/API did not become ready at $BaseUrl. Run npm run compose:up and check npm run compose:logs:gateway, npm run compose:logs:menu-service and npm run compose:logs:favorites-service."
 }
 
 function New-NutritionFacts {
@@ -141,7 +141,7 @@ Write-Host "Waiting for LabelLens gateway at $BaseUrl..."
 $health = Wait-ApiReady
 
 if ($health.storageDriver -ne "dynamodb") {
-  throw "Expected API storageDriver=dynamodb through gateway, got '$($health.storageDriver)'. Run npm run compose:up instead of npm run dev:api."
+  throw "Expected API storageDriver=dynamodb through gateway, got '$($health.storageDriver)'. Run npm run compose:up instead of direct service dev."
 }
 
 $runId = [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
@@ -163,12 +163,12 @@ if (-not $favoriteId) {
   throw "Favorite save response did not include item.id."
 }
 
-Write-Host "Restarting API container to prove data is not in process memory and gateway keeps the public boundary..."
-docker compose -f $ComposeFile restart api | Out-Host
+Write-Host "Restarting menu-service and favorites-service containers to prove data is not in process memory and gateway keeps the public boundary..."
+docker compose -f $ComposeFile restart menu-service favorites-service | Out-Host
 $healthAfterRestart = Wait-ApiReady
 
 if ($healthAfterRestart.storageDriver -ne "dynamodb") {
-  throw "API restarted without DynamoDB storage driver. Got '$($healthAfterRestart.storageDriver)'."
+  throw "Services restarted without DynamoDB storage driver. Got '$($healthAfterRestart.storageDriver)'."
 }
 
 $loginAfterRestart = Invoke-ApiJson -Method POST -Path "/api/v1/auth/demo-login" -Body @{ displayName = "Smoke persistence" }
@@ -187,4 +187,4 @@ if (-not $KeepData) {
   Invoke-ApiJson -Method DELETE -Path "/api/v1/favorites/$favoriteId" -Headers $headersAfterRestart | Out-Null
 }
 
-Write-Host "Local gateway + DynamoDB persistence verified. Menu and favorite survived API restart."
+Write-Host "Local gateway + DynamoDB persistence verified. Menu and favorite survived menu-service and favorites-service restart."
