@@ -25,6 +25,7 @@ export type FavoritesServiceConfig = {
   awsEndpointUrl?: string;
   awsRegion: string;
   labelLensTableName: string;
+  analyticsQueueUrl?: string;
 };
 
 export function readFavoritesServiceConfig(): FavoritesServiceConfig {
@@ -37,6 +38,10 @@ export function readFavoritesServiceConfig(): FavoritesServiceConfig {
 
   if (process.env.AWS_ENDPOINT_URL) {
     config.awsEndpointUrl = process.env.AWS_ENDPOINT_URL;
+  }
+
+  if (process.env.ANALYTICS_QUEUE_URL) {
+    config.analyticsQueueUrl = process.env.ANALYTICS_QUEUE_URL;
   }
 
   return config;

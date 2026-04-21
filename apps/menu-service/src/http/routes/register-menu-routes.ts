@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import type { SaveMenuInput, UpdateMenuInput } from "@labellens/application";
+import type { SaveMenuCommandInput, UpdateMenuInput } from "@labellens/application";
 import type { MenuServiceDependencies } from "../../composition/menu-service-dependencies.js";
 import { problemDetails, requireAuthUser, type ServiceBindings } from "@labellens/service-support";
 import { toMenuItem, toMenuMeal } from "../mappers/menu-request-mapper.js";
@@ -70,8 +70,9 @@ export function registerMenuRoutes(app: Hono<ServiceBindings>, dependencies: Men
       );
     }
 
-    const saveInput: SaveMenuInput = {
+    const saveInput: SaveMenuCommandInput = {
       ownerId: auth.user.userId,
+      correlationId,
       meals: parsed.data.meals.map(toMenuMeal),
     };
 

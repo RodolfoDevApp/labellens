@@ -22,3 +22,8 @@ export * from "./events/product-not-found-event.js";
 export * from "./ops/commands/record-product-not-found-command.js";
 export * from "./ops/types/product-not-found-record.js";
 export * from "./ports/product-not-found-repository.js";
+
+export * from "./events/analytics-events.js";
+export * from "./analytics/commands/record-analytics-event-command.js";
+export * from "./analytics/types/analytics-event-record.js";
+export * from "./ports/analytics-event-repository.js";

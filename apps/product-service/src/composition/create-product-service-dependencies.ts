@@ -32,7 +32,11 @@ export function createProductServiceDependencies(): ProductServiceDependencies {
         config.labelLensTableName,
       )
     : new InMemoryProductCacheRepository<ProductLookupResponse, ProductSearchResponse>();
-  const eventPublisher = config.productNotFoundQueueUrl
+  const eventQueueUrls = {
+    ...(config.productNotFoundQueueUrl ? { "product.not_found.v1": config.productNotFoundQueueUrl } : {}),
+    ...(config.analyticsQueueUrl ? { "product.scanned.v1": config.analyticsQueueUrl } : {}),
+  };
+  const eventPublisher = Object.keys(eventQueueUrls).length > 0
     ? new SafeEventPublisher(
         new SqsEventPublisher(
           createSqsClient(
@@ -40,9 +44,7 @@ export function createProductServiceDependencies(): ProductServiceDependencies {
               ? { endpoint: config.awsEndpointUrl, region: config.awsRegion }
               : { region: config.awsRegion },
           ),
-          {
-            "product.not_found.v1": config.productNotFoundQueueUrl,
-          },
+          eventQueueUrls,
         ),
       )
     : new NoopEventPublisher();

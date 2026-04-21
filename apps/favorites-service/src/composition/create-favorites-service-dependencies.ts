@@ -5,9 +5,13 @@ import {
 } from "@labellens/application";
 import {
   createDynamoDbDocumentClient,
+  createSqsClient,
   DevAuthSessionVerifier,
   DynamoDbFavoriteRepository,
   InMemoryFavoriteRepository,
+  NoopEventPublisher,
+  SafeEventPublisher,
+  SqsEventPublisher,
 } from "@labellens/infrastructure";
 import { readFavoritesServiceConfig } from "../config/favorites-service-config.js";
 import type { FavoritesServiceDependencies } from "./favorites-service-dependencies.js";
@@ -25,12 +29,27 @@ export function createFavoritesServiceDependencies(): FavoritesServiceDependenci
       )
     : new InMemoryFavoriteRepository();
 
+  const eventPublisher = config.analyticsQueueUrl
+    ? new SafeEventPublisher(
+        new SqsEventPublisher(
+          createSqsClient(
+            config.awsEndpointUrl
+              ? { endpoint: config.awsEndpointUrl, region: config.awsRegion }
+              : { region: config.awsRegion },
+          ),
+          {
+            "favorite.saved.v1": config.analyticsQueueUrl,
+          },
+        ),
+      )
+    : new NoopEventPublisher();
+
   return {
     authSessionVerifier: new DevAuthSessionVerifier(),
     useCases: {
       deleteFavorite: new DeleteFavoriteCommand(repository),
       listFavorites: new ListFavoritesQuery(repository),
-      saveFavorite: new SaveFavoriteCommand(repository),
+      saveFavorite: new SaveFavoriteCommand(repository, eventPublisher),
     },
   };
 }

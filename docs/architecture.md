@@ -62,3 +62,28 @@ product-service
 ```
 
 The producer is `product-service`. The consumer is `product-not-found-worker`. The event is operational; it must never block the barcode lookup response. Duplicate SQS delivery is handled by saving records idempotently by `eventId`.
+
+## Analytics async v1
+
+Analytics v1 no usa Kafka, RabbitMQ ni SNS. Usa SQS + DLQ en LocalStack/AWS.
+
+Los eventos de analytics son no críticos: si la publicación falla, el request HTTP debe conservar su resultado funcional. La protección queda en infraestructura mediante `SafeEventPublisher`; presentación HTTP no contiene lógica de AWS/SQS.
+
+Flujo:
+
+```txt
+gateway
+  -> service producer
+    -> SQS labellens-analytics-queue
+      -> analytics-worker
+        -> DynamoDB OPS#ANALYTICS
+```
+
+`analytics-worker` mantiene separación por capas:
+
+```txt
+application      HandleAnalyticsEventCommand
+infrastructure   AnalyticsSqsMessageHandler + DynamoDB repository
+composition      wiring SQS consumer + command + repository
+runtime          polling loop
+```

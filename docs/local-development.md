@@ -107,3 +107,24 @@ npm run compose:logs:product-service
 npm run compose:logs:product-not-found-worker
 npm run compose:logs:localstack
 ```
+
+## Fase 7B: analytics async local
+
+El flujo local de analytics es no crítico y no debe bloquear respuestas HTTP. Los producers publican a `labellens-analytics-queue` y el `analytics-worker` consume la cola para registrar eventos operativos en DynamoDB bajo `PK=OPS#ANALYTICS`.
+
+Eventos cerrados en esta fase:
+
+| Evento | Producer | Cola | Consumer | Persistencia |
+|---|---|---|---|---|
+| `food.searched.v1` | `food-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
+| `product.scanned.v1` | `product-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
+| `menu.saved.v1` | `menu-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
+| `favorite.saved.v1` | `favorites-service` | `labellens-analytics-queue` | `analytics-worker` | DynamoDB `OPS#ANALYTICS` |
+
+Validación:
+
+```powershell
+npm run local:analytics:smoke
+```
+
+El smoke publica los cuatro eventos pasando por gateway y verifica que el worker los registre en DynamoDB.

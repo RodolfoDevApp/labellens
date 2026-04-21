@@ -29,11 +29,13 @@ export function registerFoodRoutes(app: Hono<ServiceBindings>, dependencies: Foo
       const result = await dependencies.useCases.searchFoods.execute({
         query: parsed.data.q,
         page: parsed.data.page,
+        correlationId,
       });
 
       return c.json({
         ...result,
         page: parsed.data.page,
+        correlationId,
       });
     } catch (error) {
       return c.json(

@@ -44,6 +44,7 @@ export function registerFavoriteRoutes(
       displayName: parsed.data.displayName,
       defaultGrams: parsed.data.grams,
       nutrition: toNutritionFacts(parsed.data.nutrition),
+      correlationId,
     });
 
     return c.json({ item }, 201);

@@ -38,6 +38,7 @@ export type ProductServiceConfig = {
   openFoodFactsMode: string;
   openFoodFactsUserAgent: string;
   productNotFoundQueueUrl?: string;
+  analyticsQueueUrl?: string;
 };
 
 export function readProductServiceConfig(): ProductServiceConfig {
@@ -54,6 +55,7 @@ export function readProductServiceConfig(): ProductServiceConfig {
 
   const awsEndpointUrl = readOptionalUrl("AWS_ENDPOINT_URL");
   const productNotFoundQueueUrl = readOptionalUrl("PRODUCT_NOT_FOUND_QUEUE_URL");
+  const analyticsQueueUrl = readOptionalUrl("ANALYTICS_QUEUE_URL");
 
   if (awsEndpointUrl) {
     config.awsEndpointUrl = awsEndpointUrl;
@@ -61,6 +63,10 @@ export function readProductServiceConfig(): ProductServiceConfig {
 
   if (productNotFoundQueueUrl) {
     config.productNotFoundQueueUrl = productNotFoundQueueUrl;
+  }
+
+  if (analyticsQueueUrl) {
+    config.analyticsQueueUrl = analyticsQueueUrl;
   }
 
   return config;

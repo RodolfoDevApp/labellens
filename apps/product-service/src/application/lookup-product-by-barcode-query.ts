@@ -1,5 +1,5 @@
 import type { EventPublisher, ProductCacheRepository } from "@labellens/application";
-import { createProductNotFoundEvent } from "@labellens/application";
+import { createProductNotFoundEvent, createProductScannedEvent } from "@labellens/application";
 import type { ProductProvider } from "./product-provider.js";
 import type {
   ProductLookupResponse,
@@ -24,6 +24,7 @@ export class LookupProductByBarcodeQuery {
     const cached = await this.cache.getBarcode(input.barcode);
 
     if (cached) {
+      this.publishProductScanned(input, cached.sourceMode);
       return cached;
     }
 
@@ -40,7 +41,21 @@ export class LookupProductByBarcodeQuery {
       sourceMode: this.sourceMode,
     } satisfies ProductLookupResponse;
 
-    return this.cache.setBarcode(input.barcode, normalizedResult);
+    const saved = await this.cache.setBarcode(input.barcode, normalizedResult);
+
+    this.publishProductScanned(input, saved.sourceMode);
+
+    return saved;
+  }
+
+  private publishProductScanned(input: LookupProductByBarcodeInput, sourceMode: ProductSourceMode): void {
+    void this.eventPublisher.publish(
+      createProductScannedEvent({
+        barcode: input.barcode,
+        sourceMode,
+        correlationId: input.correlationId,
+      }),
+    );
   }
 
   private publishProductNotFound(input: LookupProductByBarcodeInput): void {

@@ -1,7 +1,11 @@
 import {
   createDynamoDbDocumentClient,
+  createSqsClient,
   DynamoDbFoodCacheRepository,
   InMemoryFoodCacheRepository,
+  NoopEventPublisher,
+  SafeEventPublisher,
+  SqsEventPublisher,
 } from "@labellens/infrastructure";
 import { GetFoodByIdQuery } from "../application/get-food-by-id-query.js";
 import { SearchFoodsQuery } from "../application/search-foods-query.js";
@@ -28,10 +32,26 @@ export function createFoodServiceDependencies(): FoodServiceDependencies {
       )
     : new InMemoryFoodCacheRepository<FoodSearchResponse, FoodDetailResponse>();
 
+
+  const eventPublisher = config.analyticsQueueUrl
+    ? new SafeEventPublisher(
+        new SqsEventPublisher(
+          createSqsClient(
+            config.awsEndpointUrl
+              ? { endpoint: config.awsEndpointUrl, region: config.awsRegion }
+              : { region: config.awsRegion },
+          ),
+          {
+            "food.searched.v1": config.analyticsQueueUrl,
+          },
+        ),
+      )
+    : new NoopEventPublisher();
+
   return {
     useCases: {
       getFoodById: new GetFoodByIdQuery(cache, provider),
-      searchFoods: new SearchFoodsQuery(cache, provider),
+      searchFoods: new SearchFoodsQuery(cache, provider, eventPublisher),
     },
   };
 }

@@ -25,6 +25,7 @@ export type FoodServiceConfig = {
   awsEndpointUrl?: string;
   awsRegion: string;
   labelLensTableName: string;
+  analyticsQueueUrl?: string;
   usdaApiKey: string;
   usdaApiBaseUrl: string;
 };
@@ -41,6 +42,10 @@ export function readFoodServiceConfig(): FoodServiceConfig {
 
   if (process.env.AWS_ENDPOINT_URL) {
     config.awsEndpointUrl = process.env.AWS_ENDPOINT_URL;
+  }
+
+  if (process.env.ANALYTICS_QUEUE_URL) {
+    config.analyticsQueueUrl = process.env.ANALYTICS_QUEUE_URL;
   }
 
   return config;

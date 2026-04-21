@@ -8,9 +8,13 @@ import {
 } from "@labellens/application";
 import {
   createDynamoDbDocumentClient,
+  createSqsClient,
   DevAuthSessionVerifier,
   DynamoDbSavedMenuRepository,
   InMemorySavedMenuRepository,
+  NoopEventPublisher,
+  SafeEventPublisher,
+  SqsEventPublisher,
 } from "@labellens/infrastructure";
 import { readMenuServiceConfig } from "../config/menu-service-config.js";
 import type { MenuServiceDependencies } from "./menu-service-dependencies.js";
@@ -28,6 +32,21 @@ export function createMenuServiceDependencies(): MenuServiceDependencies {
       )
     : new InMemorySavedMenuRepository();
 
+  const eventPublisher = config.analyticsQueueUrl
+    ? new SafeEventPublisher(
+        new SqsEventPublisher(
+          createSqsClient(
+            config.awsEndpointUrl
+              ? { endpoint: config.awsEndpointUrl, region: config.awsRegion }
+              : { region: config.awsRegion },
+          ),
+          {
+            "menu.saved.v1": config.analyticsQueueUrl,
+          },
+        ),
+      )
+    : new NoopEventPublisher();
+
   return {
     authSessionVerifier: new DevAuthSessionVerifier(),
     useCases: {
@@ -35,7 +54,7 @@ export function createMenuServiceDependencies(): MenuServiceDependencies {
       deleteMenu: new DeleteMenuCommand(repository),
       getMenu: new GetMenuQuery(repository),
       listMenus: new ListMenusQuery(repository),
-      saveMenu: new SaveMenuCommand(repository),
+      saveMenu: new SaveMenuCommand(repository, eventPublisher),
       updateMenu: new UpdateMenuCommand(repository),
     },
   };

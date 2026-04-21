@@ -91,6 +91,7 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       LABEL_LENS_TABLE: LabelLensTable
+      ANALYTICS_QUEUE_URL: http://localstack:4566/000000000000/labellens-analytics-queue
       USDA_API_KEY: ${USDA_API_KEY:-}
     expose:
       - "4101"
@@ -128,6 +129,7 @@ services:
       LABEL_LENS_TABLE: LabelLensTable
       OPEN_FOOD_FACTS_MODE: ${OPEN_FOOD_FACTS_MODE:-fixture}
       PRODUCT_NOT_FOUND_QUEUE_URL: http://localstack:4566/000000000000/labellens-product-not-found-queue
+      ANALYTICS_QUEUE_URL: http://localstack:4566/000000000000/labellens-analytics-queue
     expose:
       - "4102"
     volumes:
@@ -162,6 +164,7 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       LABEL_LENS_TABLE: LabelLensTable
+      ANALYTICS_QUEUE_URL: http://localstack:4566/000000000000/labellens-analytics-queue
     expose:
       - "4103"
     volumes:
@@ -196,6 +199,7 @@ services:
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
       LABEL_LENS_TABLE: LabelLensTable
+      ANALYTICS_QUEUE_URL: http://localstack:4566/000000000000/labellens-analytics-queue
     expose:
       - "4104"
     volumes:
@@ -230,6 +234,31 @@ services:
       AWS_SECRET_ACCESS_KEY: test
       LABEL_LENS_TABLE: LabelLensTable
       PRODUCT_NOT_FOUND_QUEUE_URL: http://localstack:4566/000000000000/labellens-product-not-found-queue
+      WORKER_MAX_MESSAGES: 5
+      WORKER_WAIT_TIME_SECONDS: 2
+      WORKER_VISIBILITY_TIMEOUT_SECONDS: 10
+      WORKER_IDLE_DELAY_MS: 250
+    volumes:
+      - ../..:/workspace
+      - node_modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      localstack:
+        condition: service_healthy
+        restart: true
+
+  analytics-worker:
+    image: node:24-bookworm-slim
+    working_dir: /workspace
+    command: sh -c "npm run dev:analytics-worker"
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      LABEL_LENS_TABLE: LabelLensTable
+      ANALYTICS_QUEUE_URL: http://localstack:4566/000000000000/labellens-analytics-queue
       WORKER_MAX_MESSAGES: 5
       WORKER_WAIT_TIME_SECONDS: 2
       WORKER_VISIBILITY_TIMEOUT_SECONDS: 10

@@ -1,5 +1,6 @@
 export * from "./auth/dev-auth-session-verifier.js";
 export * from "./auth/dev-auth-token.js";
+export * from "./dynamodb/analytics/dynamodb-analytics-event-repository.js";
 export * from "./dynamodb/cache/dynamodb-food-cache-repository.js";
 export * from "./dynamodb/cache/dynamodb-product-cache-repository.js";
 export * from "./dynamodb/create-dynamodb-document-client.js";
