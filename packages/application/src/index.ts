@@ -1,5 +1,6 @@
 export * from "./ports/auth-session-verifier.js";
 export * from "./ports/event-publisher.js";
+export * from "./ports/event-idempotency-repository.js";
 export * from "./ports/favorite-repository.js";
 export * from "./ports/food-cache-repository.js";
 export * from "./ports/product-cache-repository.js";
@@ -19,6 +20,7 @@ export * from "./menus/types/menu-calculation-response.js";
 export * from "./menus/types/menu-calculation-warning.js";
 export { createFavoriteId, parseFavoriteId } from "./favorites/favorite-id.js";
 export * from "./events/product-not-found-event.js";
+export * from "./events/cache-refresh-events.js";
 export * from "./ops/commands/record-product-not-found-command.js";
 export * from "./ops/types/product-not-found-record.js";
 export * from "./ports/product-not-found-repository.js";

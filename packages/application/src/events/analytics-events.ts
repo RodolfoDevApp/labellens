@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { FavoriteItem } from "../ports/favorite-repository.js";
 import type { LabelLensEvent } from "../ports/event-publisher.js";
 import type { SavedMenu } from "../ports/saved-menu-repository.js";
@@ -11,48 +11,49 @@ export type AnalyticsEventType =
 
 export type FoodSearchedEventPayload = {
   query: string;
-  page: number;
+  queryUsed: string;
   resultCount: number;
-  source: "USDA";
   sourceMode: "fixture" | "live";
 };
 
 export type ProductScannedEventPayload = {
   barcode: string;
-  source: "OPEN_FOOD_FACTS";
   sourceMode: "fixture" | "live";
+  productName: string | null;
 };
 
 export type MenuSavedEventPayload = {
-  ownerId: string;
+  ownerIdHash: string;
   menuId: string;
   mealCount: number;
   itemCount: number;
-  date?: string;
 };
 
 export type FavoriteSavedEventPayload = {
-  ownerId: string;
+  ownerIdHash: string;
   favoriteId: string;
   source: string;
   sourceId: string;
-  defaultGrams: number;
 };
 
 export type FoodSearchedEvent = LabelLensEvent<FoodSearchedEventPayload> & {
   eventType: "food.searched.v1";
+  producer: "food-service";
 };
 
 export type ProductScannedEvent = LabelLensEvent<ProductScannedEventPayload> & {
   eventType: "product.scanned.v1";
+  producer: "product-service";
 };
 
 export type MenuSavedEvent = LabelLensEvent<MenuSavedEventPayload> & {
   eventType: "menu.saved.v1";
+  producer: "menu-service";
 };
 
 export type FavoriteSavedEvent = LabelLensEvent<FavoriteSavedEventPayload> & {
   eventType: "favorite.saved.v1";
+  producer: "favorites-service";
 };
 
 export type AnalyticsEvent =
@@ -61,9 +62,14 @@ export type AnalyticsEvent =
   | MenuSavedEvent
   | FavoriteSavedEvent;
 
+function ownerIdHash(ownerId: string): string {
+  return createHash("sha256").update(ownerId).digest("hex");
+}
+
 function newEventBase(input: { correlationId: string; now?: Date; eventId?: string }) {
   return {
     eventId: input.eventId ?? randomUUID(),
+    eventVersion: 1 as const,
     occurredAt: (input.now ?? new Date()).toISOString(),
     correlationId: input.correlationId,
   };
@@ -71,7 +77,7 @@ function newEventBase(input: { correlationId: string; now?: Date; eventId?: stri
 
 export function createFoodSearchedEvent(input: {
   query: string;
-  page: number;
+  queryUsed: string;
   resultCount: number;
   sourceMode: "fixture" | "live";
   correlationId: string;
@@ -81,11 +87,11 @@ export function createFoodSearchedEvent(input: {
   return {
     ...newEventBase(input),
     eventType: "food.searched.v1",
+    producer: "food-service",
     payload: {
       query: input.query,
-      page: input.page,
+      queryUsed: input.queryUsed,
       resultCount: input.resultCount,
-      source: "USDA",
       sourceMode: input.sourceMode,
     },
   };
@@ -94,6 +100,7 @@ export function createFoodSearchedEvent(input: {
 export function createProductScannedEvent(input: {
   barcode: string;
   sourceMode: "fixture" | "live";
+  productName: string | null;
   correlationId: string;
   now?: Date;
   eventId?: string;
@@ -101,10 +108,11 @@ export function createProductScannedEvent(input: {
   return {
     ...newEventBase(input),
     eventType: "product.scanned.v1",
+    producer: "product-service",
     payload: {
       barcode: input.barcode,
-      source: "OPEN_FOOD_FACTS",
       sourceMode: input.sourceMode,
+      productName: input.productName,
     },
   };
 }
@@ -116,21 +124,17 @@ export function createMenuSavedEvent(input: {
   eventId?: string;
 }): MenuSavedEvent {
   const itemCount = input.menu.meals.reduce((total, meal) => total + meal.items.length, 0);
-  const payload: MenuSavedEventPayload = {
-    ownerId: input.menu.ownerId,
-    menuId: input.menu.id,
-    mealCount: input.menu.meals.length,
-    itemCount,
-  };
-
-  if (input.menu.date) {
-    payload.date = input.menu.date;
-  }
 
   return {
     ...newEventBase(input),
     eventType: "menu.saved.v1",
-    payload,
+    producer: "menu-service",
+    payload: {
+      ownerIdHash: ownerIdHash(input.menu.ownerId),
+      menuId: input.menu.id,
+      mealCount: input.menu.meals.length,
+      itemCount,
+    },
   };
 }
 
@@ -143,12 +147,12 @@ export function createFavoriteSavedEvent(input: {
   return {
     ...newEventBase(input),
     eventType: "favorite.saved.v1",
+    producer: "favorites-service",
     payload: {
-      ownerId: input.favorite.ownerId,
+      ownerIdHash: ownerIdHash(input.favorite.ownerId),
       favoriteId: input.favorite.id,
       source: input.favorite.source,
       sourceId: input.favorite.sourceId,
-      defaultGrams: input.favorite.defaultGrams,
     },
   };
 }

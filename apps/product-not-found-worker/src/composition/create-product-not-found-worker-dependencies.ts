@@ -2,6 +2,7 @@ import { RecordProductNotFoundCommand } from "@labellens/application";
 import {
   createDynamoDbDocumentClient,
   createSqsClient,
+  DynamoDbEventIdempotencyRepository,
   DynamoDbProductNotFoundRepository,
   SqsPollingConsumer,
 } from "@labellens/infrastructure";
@@ -23,7 +24,11 @@ export function createProductNotFoundWorkerDependencies(): ProductNotFoundWorker
       : { region: config.awsRegion },
   );
   const repository = new DynamoDbProductNotFoundRepository(dynamoDb, config.labelLensTableName);
-  const command = new HandleProductNotFoundMessageCommand(new RecordProductNotFoundCommand(repository));
+  const idempotencyRepository = new DynamoDbEventIdempotencyRepository(dynamoDb, config.labelLensTableName);
+  const command = new HandleProductNotFoundMessageCommand(
+    new RecordProductNotFoundCommand(repository),
+    idempotencyRepository,
+  );
   const messageHandler = new ProductNotFoundSqsMessageHandler(command);
 
   return {

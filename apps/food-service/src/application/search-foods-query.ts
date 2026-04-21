@@ -36,7 +36,7 @@ export class SearchFoodsQuery {
     void this.eventPublisher?.publish(
       createFoodSearchedEvent({
         query: input.query,
-        page: input.page,
+        queryUsed: result.queryUsed,
         resultCount: result.items.length,
         sourceMode: result.sourceMode,
         correlationId: input.correlationId,

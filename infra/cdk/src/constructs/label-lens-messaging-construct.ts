@@ -9,6 +9,8 @@ export type LabelLensMessagingConstructProps = {
   resourcePrefix: string;
   productNotFoundQueue: QueueConfig;
   analyticsQueue: QueueConfig;
+  foodCacheRefreshQueue: QueueConfig;
+  productCacheRefreshQueue: QueueConfig;
 };
 
 export class LabelLensMessagingConstruct extends Construct {
@@ -16,6 +18,10 @@ export class LabelLensMessagingConstruct extends Construct {
   readonly productNotFoundDeadLetterQueue: Queue;
   readonly analyticsQueue: Queue;
   readonly analyticsDeadLetterQueue: Queue;
+  readonly foodCacheRefreshQueue: Queue;
+  readonly foodCacheRefreshDeadLetterQueue: Queue;
+  readonly productCacheRefreshQueue: Queue;
+  readonly productCacheRefreshDeadLetterQueue: Queue;
 
   constructor(scope: Construct, id: string, props: LabelLensMessagingConstructProps) {
     super(scope, id);
@@ -28,14 +34,25 @@ export class LabelLensMessagingConstruct extends Construct {
     this.analyticsQueue = analyticsQueues.queue;
     this.analyticsDeadLetterQueue = analyticsQueues.deadLetterQueue;
 
+    const foodCacheRefreshQueues = this.createQueueWithDlq("FoodCacheRefresh", props.foodCacheRefreshQueue);
+    this.foodCacheRefreshQueue = foodCacheRefreshQueues.queue;
+    this.foodCacheRefreshDeadLetterQueue = foodCacheRefreshQueues.deadLetterQueue;
+
+    const productCacheRefreshQueues = this.createQueueWithDlq("ProductCacheRefresh", props.productCacheRefreshQueue);
+    this.productCacheRefreshQueue = productCacheRefreshQueues.queue;
+    this.productCacheRefreshDeadLetterQueue = productCacheRefreshQueues.deadLetterQueue;
+
     this.exportQueueParameters(props.resourcePrefix, "product-not-found", this.productNotFoundQueue, this.productNotFoundDeadLetterQueue);
     this.exportQueueParameters(props.resourcePrefix, "analytics", this.analyticsQueue, this.analyticsDeadLetterQueue);
+    this.exportQueueParameters(props.resourcePrefix, "food-cache-refresh", this.foodCacheRefreshQueue, this.foodCacheRefreshDeadLetterQueue);
+    this.exportQueueParameters(props.resourcePrefix, "product-cache-refresh", this.productCacheRefreshQueue, this.productCacheRefreshDeadLetterQueue);
   }
 
   private createQueueWithDlq(idPrefix: string, config: QueueConfig): { queue: Queue; deadLetterQueue: Queue } {
     const deadLetterQueue = new Queue(this, `${idPrefix}DeadLetterQueue`, {
       queueName: config.deadLetterQueueName,
       retentionPeriod: Duration.days(14),
+      receiveMessageWaitTime: Duration.seconds(20),
       removalPolicy: RemovalPolicy.RETAIN,
       enforceSSL: true,
     });
@@ -44,6 +61,7 @@ export class LabelLensMessagingConstruct extends Construct {
       queueName: config.queueName,
       visibilityTimeout: Duration.seconds(60),
       retentionPeriod: Duration.days(4),
+      receiveMessageWaitTime: Duration.seconds(20),
       removalPolicy: RemovalPolicy.RETAIN,
       enforceSSL: true,
       deadLetterQueue: {

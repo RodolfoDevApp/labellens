@@ -270,6 +270,16 @@ Ensure-QueueWithDlq `
 Ensure-QueueWithDlq `
   -QueueName "labellens-analytics-queue" `
   -DlqName "labellens-analytics-dlq" `
-  -MaxReceiveCount 5
+  -MaxReceiveCount 3
 
-Write-Host "LocalStack resources ready: $tableName, SQS queues, DLQs and redrive policies."
+Ensure-QueueWithDlq `
+  -QueueName "labellens-food-cache-refresh-queue" `
+  -DlqName "labellens-food-cache-refresh-dlq" `
+  -MaxReceiveCount 3
+
+Ensure-QueueWithDlq `
+  -QueueName "labellens-product-cache-refresh-queue" `
+  -DlqName "labellens-product-cache-refresh-dlq" `
+  -MaxReceiveCount 3
+
+Write-Host "LocalStack resources ready: $tableName, sealed SQS queues, DLQs and redrive policies."

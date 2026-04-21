@@ -73,10 +73,15 @@ describe("LookupProductByBarcodeQuery", () => {
 
     expect(publishedEvent).toMatchObject({
       eventType: "product.not_found.v1",
+      eventVersion: 1,
       correlationId: "corr-1",
+      producer: "product-service",
       payload: {
         barcode: "1234567890123",
         source: "OPEN_FOOD_FACTS",
+        sourceMode: "fixture",
+        reason: "OFF_NOT_FOUND",
+        requestPath: "/api/v1/products/barcode/{barcode}",
       },
     });
   });

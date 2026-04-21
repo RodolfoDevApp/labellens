@@ -124,6 +124,8 @@ ensure_queue_with_dlq() {
 }
 
 ensure_queue_with_dlq "labellens-product-not-found-queue" "labellens-product-not-found-dlq" "3"
-ensure_queue_with_dlq "labellens-analytics-queue" "labellens-analytics-dlq" "5"
+ensure_queue_with_dlq "labellens-analytics-queue" "labellens-analytics-dlq" "3"
+ensure_queue_with_dlq "labellens-food-cache-refresh-queue" "labellens-food-cache-refresh-dlq" "3"
+ensure_queue_with_dlq "labellens-product-cache-refresh-queue" "labellens-product-cache-refresh-dlq" "3"
 
 echo "LabelLens LocalStack resources ready."

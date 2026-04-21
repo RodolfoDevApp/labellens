@@ -76,7 +76,8 @@
     "build:cdk": "npm run build -w @labellens/cdk",
     "test:cdk": "npm run test -w @labellens/cdk",
     "synth:cdk": "npm run synth -w @labellens/cdk",
-    "cdk": "npm run cdk -w @labellens/cdk --"
+    "cdk": "npm run cdk -w @labellens/cdk --",
+    "local:cache-refresh:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-cache-refresh-events.ps1"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

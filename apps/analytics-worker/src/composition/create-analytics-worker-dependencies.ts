@@ -3,6 +3,7 @@ import {
   createDynamoDbDocumentClient,
   createSqsClient,
   DynamoDbAnalyticsEventRepository,
+  DynamoDbEventIdempotencyRepository,
   SqsPollingConsumer,
 } from "@labellens/infrastructure";
 import { HandleAnalyticsEventCommand } from "../application/handle-analytics-event-command.js";
@@ -23,7 +24,11 @@ export function createAnalyticsWorkerDependencies(): AnalyticsWorkerDependencies
       : { region: config.awsRegion },
   );
   const repository = new DynamoDbAnalyticsEventRepository(dynamoDb, config.labelLensTableName);
-  const command = new HandleAnalyticsEventCommand(new RecordAnalyticsEventCommand(repository));
+  const idempotencyRepository = new DynamoDbEventIdempotencyRepository(dynamoDb, config.labelLensTableName);
+  const command = new HandleAnalyticsEventCommand(
+    new RecordAnalyticsEventCommand(repository),
+    idempotencyRepository,
+  );
   const messageHandler = new AnalyticsSqsMessageHandler(command);
 
   return {

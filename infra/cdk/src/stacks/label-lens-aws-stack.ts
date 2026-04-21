@@ -23,6 +23,8 @@ export class LabelLensAwsStack extends Stack {
       resourcePrefix: props.config.resourcePrefix,
       productNotFoundQueue: props.config.queues.productNotFound,
       analyticsQueue: props.config.queues.analytics,
+      foodCacheRefreshQueue: props.config.queues.foodCacheRefresh,
+      productCacheRefreshQueue: props.config.queues.productCacheRefresh,
     });
 
     new LabelLensContainerRepositoriesConstruct(this, "ContainerRepositories", {
@@ -45,6 +47,14 @@ export class LabelLensAwsStack extends Stack {
 
     new CfnOutput(this, "AnalyticsQueueUrl", {
       value: messaging.analyticsQueue.queueUrl,
+    });
+
+    new CfnOutput(this, "FoodCacheRefreshQueueUrl", {
+      value: messaging.foodCacheRefreshQueue.queueUrl,
+    });
+
+    new CfnOutput(this, "ProductCacheRefreshQueueUrl", {
+      value: messaging.productCacheRefreshQueue.queueUrl,
     });
   }
 }

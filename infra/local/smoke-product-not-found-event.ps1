@@ -111,7 +111,7 @@ function Find-ProductNotFoundRecord {
   param([string] $ExpectedBarcode)
 
   $attributeValues = @{
-    ":pk" = @{ S = "OPS#PRODUCT_NOT_FOUND" }
+    ":pk" = @{ S = "OPS#PRODUCT_NOT_FOUND#" }
     ":barcode" = @{ S = $ExpectedBarcode }
   } | ConvertTo-Json -Depth 5
 

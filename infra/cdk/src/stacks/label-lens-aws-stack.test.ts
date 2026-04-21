@@ -56,7 +56,7 @@ describe("LabelLensAwsStack", () => {
     });
   });
 
-  it("creates product-not-found and analytics queues with DLQs and closed retry counts", () => {
+  it("creates all sealed messaging queues with DLQs and closed retry counts", () => {
     const template = synthesizeTemplate();
 
     template.hasResourceProperties("AWS::SQS::Queue", {
@@ -77,7 +77,29 @@ describe("LabelLensAwsStack", () => {
     template.hasResourceProperties("AWS::SQS::Queue", {
       QueueName: "labellens-test-analytics-queue",
       RedrivePolicy: {
-        maxReceiveCount: 5,
+        maxReceiveCount: 3,
+      },
+    });
+
+    template.hasResourceProperties("AWS::SQS::Queue", {
+      QueueName: "labellens-test-food-cache-refresh-dlq",
+    });
+
+    template.hasResourceProperties("AWS::SQS::Queue", {
+      QueueName: "labellens-test-food-cache-refresh-queue",
+      RedrivePolicy: {
+        maxReceiveCount: 3,
+      },
+    });
+
+    template.hasResourceProperties("AWS::SQS::Queue", {
+      QueueName: "labellens-test-product-cache-refresh-dlq",
+    });
+
+    template.hasResourceProperties("AWS::SQS::Queue", {
+      QueueName: "labellens-test-product-cache-refresh-queue",
+      RedrivePolicy: {
+        maxReceiveCount: 3,
       },
     });
   });
@@ -121,13 +143,13 @@ describe("LabelLensAwsStack", () => {
       Value: "gateway-only",
     });
 
-    template.resourceCountIs("AWS::SSM::Parameter", 29);
+    template.resourceCountIs("AWS::SSM::Parameter", 37);
   });
 
   it("alarms on DLQ messages and queue age", () => {
     const template = synthesizeTemplate();
 
-    expect(Object.keys(template.findResources("AWS::CloudWatch::Alarm"))).toHaveLength(4);
+    expect(Object.keys(template.findResources("AWS::CloudWatch::Alarm"))).toHaveLength(8);
 
     template.hasResourceProperties("AWS::CloudWatch::Alarm", {
       AlarmName: "labellens-test-product-not-found-dlq-visible-messages",
@@ -137,6 +159,19 @@ describe("LabelLensAwsStack", () => {
 
     template.hasResourceProperties("AWS::CloudWatch::Alarm", {
       AlarmName: "labellens-test-analytics-queue-oldest-message-age",
+      Threshold: 300,
+      EvaluationPeriods: 2,
+      TreatMissingData: "notBreaching",
+    });
+
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      AlarmName: "labellens-test-food-cache-refresh-dlq-visible-messages",
+      Threshold: 1,
+      TreatMissingData: "notBreaching",
+    });
+
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      AlarmName: "labellens-test-product-cache-refresh-queue-oldest-message-age",
       Threshold: 300,
       EvaluationPeriods: 2,
       TreatMissingData: "notBreaching",

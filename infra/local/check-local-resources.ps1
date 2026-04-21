@@ -189,7 +189,11 @@ if ($ttl.TimeToLiveDescription.TimeToLiveStatus -ne "ENABLED") {
 Write-Host "Checking SQS queues and redrive policies..."
 Assert-QueueExists -QueueName "labellens-product-not-found-dlq"
 Assert-QueueExists -QueueName "labellens-analytics-dlq"
+Assert-QueueExists -QueueName "labellens-food-cache-refresh-dlq"
+Assert-QueueExists -QueueName "labellens-product-cache-refresh-dlq"
 Assert-QueueRedrivePolicy -QueueName "labellens-product-not-found-queue" -ExpectedDlqName "labellens-product-not-found-dlq" -ExpectedMaxReceiveCount "3"
-Assert-QueueRedrivePolicy -QueueName "labellens-analytics-queue" -ExpectedDlqName "labellens-analytics-dlq" -ExpectedMaxReceiveCount "5"
+Assert-QueueRedrivePolicy -QueueName "labellens-analytics-queue" -ExpectedDlqName "labellens-analytics-dlq" -ExpectedMaxReceiveCount "3"
+Assert-QueueRedrivePolicy -QueueName "labellens-food-cache-refresh-queue" -ExpectedDlqName "labellens-food-cache-refresh-dlq" -ExpectedMaxReceiveCount "3"
+Assert-QueueRedrivePolicy -QueueName "labellens-product-cache-refresh-queue" -ExpectedDlqName "labellens-product-cache-refresh-dlq" -ExpectedMaxReceiveCount "3"
 
-Write-Host "Local enterprise resources verified through gateway: API health, DynamoDB table, TTL, SQS queues and DLQ redrive policies."
+Write-Host "Local enterprise resources verified through gateway: API health, DynamoDB table, TTL, sealed SQS queues and DLQ redrive policies."

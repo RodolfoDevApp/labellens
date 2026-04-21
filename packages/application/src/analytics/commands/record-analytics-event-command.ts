@@ -8,8 +8,10 @@ export class RecordAnalyticsEventCommand {
     await this.analyticsEventRepository.save({
       eventId: event.eventId,
       eventType: event.eventType,
+      eventVersion: event.eventVersion,
       occurredAt: event.occurredAt,
       correlationId: event.correlationId,
+      producer: event.producer,
       payload: event.payload,
       recordedAt: new Date().toISOString(),
     });

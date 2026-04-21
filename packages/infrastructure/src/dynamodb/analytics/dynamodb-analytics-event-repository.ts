@@ -14,26 +14,31 @@ export class DynamoDbAnalyticsEventRepository implements AnalyticsEventRepositor
     const item: AnalyticsEventDynamoDbItem = {
       PK: analyticsEventPk(),
       SK: analyticsEventSk(record.eventId),
+      entityType: "AnalyticsEvent",
       eventId: record.eventId,
       eventType: record.eventType,
+      eventVersion: record.eventVersion,
       occurredAt: record.occurredAt,
       correlationId: record.correlationId,
+      producer: record.producer,
       payload: record.payload,
       recordedAt: record.recordedAt,
     };
 
-    await this.client.send(
-      new PutCommand({
-        TableName: this.tableName,
-        Item: item,
-        ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
-      }),
-    ).catch((error: unknown) => {
-      if (error instanceof Error && error.name === "ConditionalCheckFailedException") {
-        return;
-      }
+    await this.client
+      .send(
+        new PutCommand({
+          TableName: this.tableName,
+          Item: item,
+          ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+        }),
+      )
+      .catch((error: unknown) => {
+        if (error instanceof Error && error.name === "ConditionalCheckFailedException") {
+          return;
+        }
 
-      throw error;
-    });
+        throw error;
+      });
   }
 }

@@ -6,6 +6,7 @@ export * from "./dynamodb/cache/dynamodb-product-cache-repository.js";
 export * from "./dynamodb/create-dynamodb-document-client.js";
 export * from "./dynamodb/dynamodb-connection-config.js";
 export * from "./dynamodb/favorites/dynamodb-favorite-repository.js";
+export * from "./dynamodb/idempotency/dynamodb-event-idempotency-repository.js";
 export * from "./dynamodb/menus/dynamodb-saved-menu-repository.js";
 export * from "./events/noop-event-publisher.js";
 export * from "./in-memory/cache/in-memory-food-cache-repository.js";

@@ -24,7 +24,7 @@ export class LookupProductByBarcodeQuery {
     const cached = await this.cache.getBarcode(input.barcode);
 
     if (cached) {
-      this.publishProductScanned(input, cached.sourceMode);
+      this.publishProductScanned(input, cached);
       return cached;
     }
 
@@ -43,16 +43,17 @@ export class LookupProductByBarcodeQuery {
 
     const saved = await this.cache.setBarcode(input.barcode, normalizedResult);
 
-    this.publishProductScanned(input, saved.sourceMode);
+    this.publishProductScanned(input, saved);
 
     return saved;
   }
 
-  private publishProductScanned(input: LookupProductByBarcodeInput, sourceMode: ProductSourceMode): void {
+  private publishProductScanned(input: LookupProductByBarcodeInput, result: ProductLookupResponse): void {
     void this.eventPublisher.publish(
       createProductScannedEvent({
         barcode: input.barcode,
-        sourceMode,
+        sourceMode: result.sourceMode,
+        productName: result.product.name,
         correlationId: input.correlationId,
       }),
     );
@@ -62,6 +63,7 @@ export class LookupProductByBarcodeQuery {
     void this.eventPublisher.publish(
       createProductNotFoundEvent({
         barcode: input.barcode,
+        sourceMode: this.sourceMode,
         correlationId: input.correlationId,
       }),
     );

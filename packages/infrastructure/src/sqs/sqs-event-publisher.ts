@@ -18,6 +18,14 @@ export class SqsEventPublisher implements EventPublisher {
             DataType: "String",
             StringValue: event.eventType,
           },
+          eventVersion: {
+            DataType: "Number",
+            StringValue: String(event.eventVersion),
+          },
+          producer: {
+            DataType: "String",
+            StringValue: event.producer,
+          },
           correlationId: {
             DataType: "String",
             StringValue: event.correlationId,

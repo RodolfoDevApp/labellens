@@ -6,6 +6,8 @@ export type LabelLensAwsConfig = {
   queues: {
     productNotFound: QueueConfig;
     analytics: QueueConfig;
+    foodCacheRefresh: QueueConfig;
+    productCacheRefresh: QueueConfig;
   };
 };
 
@@ -44,7 +46,17 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       analytics: {
         queueName: `${resourcePrefix}-analytics-queue`,
         deadLetterQueueName: `${resourcePrefix}-analytics-dlq`,
-        maxReceiveCount: 5,
+        maxReceiveCount: 3,
+      },
+      foodCacheRefresh: {
+        queueName: `${resourcePrefix}-food-cache-refresh-queue`,
+        deadLetterQueueName: `${resourcePrefix}-food-cache-refresh-dlq`,
+        maxReceiveCount: 3,
+      },
+      productCacheRefresh: {
+        queueName: `${resourcePrefix}-product-cache-refresh-queue`,
+        deadLetterQueueName: `${resourcePrefix}-product-cache-refresh-dlq`,
+        maxReceiveCount: 3,
       },
     },
   };
