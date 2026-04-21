@@ -19,7 +19,6 @@
     "compose:down": "docker compose -f infra/compose/docker-compose.yml down",
     "compose:ps": "docker compose -f infra/compose/docker-compose.yml ps",
     "export": "powershell -ExecutionPolicy Bypass -File scripts/export-repo.ps1",
-
     "dev:web": "npm run dev -w apps/web",
     "dev:gateway": "npm run dev -w @labellens/gateway",
     "dev:auth-service": "npm run dev -w @labellens/auth-service",
@@ -29,14 +28,12 @@
     "dev:favorites-service": "npm run dev -w @labellens/favorites-service",
     "dev:product-not-found-worker": "npm run dev -w @labellens/product-not-found-worker",
     "dev:analytics-worker": "npm run dev -w @labellens/analytics-worker",
-
     "build:domain": "npm run build -w @labellens/domain",
     "build:contracts": "npm run build -w @labellens/contracts",
     "build:application": "npm run build -w @labellens/application",
     "build:infrastructure": "npm run build -w @labellens/infrastructure",
     "build:service-support": "npm run build -w @labellens/service-support",
     "build:core": "npm run build:domain && npm run build:contracts && npm run build:application && npm run build:infrastructure && npm run build:service-support",
-
     "build:auth-service": "npm run build -w @labellens/auth-service",
     "build:food-service": "npm run build -w @labellens/food-service",
     "build:product-service": "npm run build -w @labellens/product-service",
@@ -44,36 +41,28 @@
     "build:favorites-service": "npm run build -w @labellens/favorites-service",
     "build:services": "npm run build:core && npm run build:auth-service && npm run build:food-service && npm run build:product-service && npm run build:menu-service && npm run build:favorites-service",
     "build:api": "npm run build:services",
-
     "build:product-not-found-worker": "npm run build -w @labellens/product-not-found-worker",
     "build:analytics-worker": "npm run build -w @labellens/analytics-worker",
     "build:workers": "npm run build:core && npm run build:product-not-found-worker && npm run build:analytics-worker",
-
     "build:gateway": "npm run build -w @labellens/gateway",
     "build:web": "npm run build -w web",
-
     "test:auth-service": "npm run test -w @labellens/auth-service",
     "test:food-service": "npm run test -w @labellens/food-service",
     "test:product-service": "npm run test -w @labellens/product-service",
     "test:menu-service": "npm run test -w @labellens/menu-service",
     "test:favorites-service": "npm run test -w @labellens/favorites-service",
     "test:services": "npm run build:core && npm run test:auth-service && npm run test:food-service && npm run test:product-service && npm run test:menu-service && npm run test:favorites-service",
-
     "test:product-not-found-worker": "npm run test -w @labellens/product-not-found-worker",
     "test:analytics-worker": "npm run test -w @labellens/analytics-worker",
     "test:workers": "npm run build:core && npm run test:product-not-found-worker && npm run test:analytics-worker",
-
     "test:gateway": "npm run test -w @labellens/gateway",
-
     "generate:openapi": "npm run build:contracts && npm run generate:openapi -w @labellens/contracts",
     "check:openapi": "npm run build:contracts && npm run check:openapi -w @labellens/contracts",
-
     "local:init": "powershell -ExecutionPolicy Bypass -File infra/local/init-localstack.ps1",
     "local:resources:check": "powershell -ExecutionPolicy Bypass -File infra/local/check-local-resources.ps1",
     "local:persistence:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-local-persistence.ps1",
     "local:events:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-product-not-found-event.ps1",
     "local:analytics:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-analytics-event.ps1",
-
     "compose:logs:web": "docker compose -f infra/compose/docker-compose.yml logs -f web",
     "compose:logs:gateway": "docker compose -f infra/compose/docker-compose.yml logs -f gateway",
     "compose:logs:localstack": "docker compose -f infra/compose/docker-compose.yml logs -f localstack",
@@ -83,7 +72,11 @@
     "compose:logs:menu-service": "docker compose -f infra/compose/docker-compose.yml logs -f menu-service",
     "compose:logs:favorites-service": "docker compose -f infra/compose/docker-compose.yml logs -f favorites-service",
     "compose:logs:product-not-found-worker": "docker compose -f infra/compose/docker-compose.yml logs -f product-not-found-worker",
-    "compose:logs:analytics-worker": "docker compose -f infra/compose/docker-compose.yml logs -f analytics-worker"
+    "compose:logs:analytics-worker": "docker compose -f infra/compose/docker-compose.yml logs -f analytics-worker",
+    "build:cdk": "npm run build -w @labellens/cdk",
+    "test:cdk": "npm run test -w @labellens/cdk",
+    "synth:cdk": "npm run synth -w @labellens/cdk",
+    "cdk": "npm run cdk -w @labellens/cdk --"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

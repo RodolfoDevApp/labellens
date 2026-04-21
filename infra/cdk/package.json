@@ -1,0 +1,29 @@
+{
+  "name": "@labellens/cdk",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "AWS CDK infrastructure for LabelLens cloud resources.",
+  "bin": {
+    "labellens-cdk": "dist/bin/label-lens-cdk.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "synth": "npm run build && cdk synth --app \"node dist/bin/label-lens-cdk.js\"",
+    "test": "tsc -p tsconfig.json && vitest run src",
+    "cdk": "cdk"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.250.0",
+    "constructs": "^10.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "aws-cdk": "^2.250.0",
+    "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}

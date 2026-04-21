@@ -1,0 +1,8 @@
+{
+  "app": "node dist/bin/label-lens-cdk.js",
+  "context": {
+    "@aws-cdk/core:bootstrapQualifier": "hnb659fds",
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy": true,
+    "environmentName": "dev"
+  }
+}
