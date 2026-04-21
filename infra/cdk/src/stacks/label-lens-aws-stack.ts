@@ -5,6 +5,7 @@ import { LabelLensContainerRepositoriesConstruct } from "../constructs/label-len
 import { LabelLensDataConstruct } from "../constructs/label-lens-data-construct.js";
 import { LabelLensMessagingConstruct } from "../constructs/label-lens-messaging-construct.js";
 import { LabelLensOperationalParametersConstruct } from "../constructs/label-lens-operational-parameters-construct.js";
+import { LabelLensSchedulesConstruct } from "../constructs/label-lens-schedules-construct.js";
 
 export type LabelLensAwsStackProps = StackProps & {
   config: LabelLensAwsConfig;
@@ -25,6 +26,17 @@ export class LabelLensAwsStack extends Stack {
       analyticsQueue: props.config.queues.analytics,
       foodCacheRefreshQueue: props.config.queues.foodCacheRefresh,
       productCacheRefreshQueue: props.config.queues.productCacheRefresh,
+    });
+
+    new LabelLensSchedulesConstruct(this, "Schedules", {
+      resourcePrefix: props.config.resourcePrefix,
+      scheduleGroupName: props.config.schedules.scheduleGroupName,
+      foodCacheRefreshSchedule: props.config.schedules.foodCacheRefresh,
+      productCacheRefreshSchedule: props.config.schedules.productCacheRefresh,
+      foodCacheRefreshQueue: messaging.foodCacheRefreshQueue,
+      foodCacheRefreshDeadLetterQueue: messaging.foodCacheRefreshDeadLetterQueue,
+      productCacheRefreshQueue: messaging.productCacheRefreshQueue,
+      productCacheRefreshDeadLetterQueue: messaging.productCacheRefreshDeadLetterQueue,
     });
 
     new LabelLensContainerRepositoriesConstruct(this, "ContainerRepositories", {

@@ -9,12 +9,23 @@ export type LabelLensAwsConfig = {
     foodCacheRefresh: QueueConfig;
     productCacheRefresh: QueueConfig;
   };
+  schedules: {
+    scheduleGroupName: string;
+    foodCacheRefresh: ScheduleConfig;
+    productCacheRefresh: ScheduleConfig;
+  };
 };
 
 export type QueueConfig = {
   queueName: string;
   deadLetterQueueName: string;
   maxReceiveCount: number;
+};
+
+export type ScheduleConfig = {
+  scheduleName: string;
+  scheduleExpression: string;
+  limit: number;
 };
 
 export const serviceContainerRepositoryNames = [
@@ -60,6 +71,19 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
         queueName: `${resourcePrefix}-product-cache-refresh-queue`,
         deadLetterQueueName: `${resourcePrefix}-product-cache-refresh-dlq`,
         maxReceiveCount: 3,
+      },
+    },
+    schedules: {
+      scheduleGroupName: `${resourcePrefix}-schedules`,
+      foodCacheRefresh: {
+        scheduleName: `${resourcePrefix}-food-cache-refresh-daily`,
+        scheduleExpression: "cron(0 3 * * ? *)",
+        limit: 50,
+      },
+      productCacheRefresh: {
+        scheduleName: `${resourcePrefix}-product-cache-refresh-daily`,
+        scheduleExpression: "cron(15 3 * * ? *)",
+        limit: 50,
       },
     },
   };

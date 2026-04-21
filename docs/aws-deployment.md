@@ -1,6 +1,6 @@
 # AWS deployment plan
 
-Fase 8 starts the real AWS track by codifying the resources that are already proven locally.
+Fase 8 starts the AWS track by codifying the cloud resources already proven by the local enterprise runtime.
 
 ## Current AWS IaC scope
 
@@ -11,6 +11,12 @@ The CDK stack creates:
 - analytics queue and DLQ with max receive count `3`.
 - food-cache-refresh queue and DLQ with max receive count `3`.
 - product-cache-refresh queue and DLQ with max receive count `3`.
+- EventBridge Scheduler group for LabelLens schedules.
+- Daily EventBridge Scheduler rules that publish sealed scheduler events to SQS:
+  - `cache.refresh.food.requested.v1` at `03:00 UTC`.
+  - `cache.refresh.product.requested.v1` at `03:15 UTC`.
+- IAM role allowing EventBridge Scheduler to call `sqs:SendMessage` only on the two cache-refresh queues.
+- Scheduler target DLQ wiring to the corresponding cache-refresh DLQs.
 - CloudWatch alarms for DLQs and queue age.
 - ECR repositories for:
   - gateway
@@ -24,22 +30,11 @@ The CDK stack creates:
   - food-cache-refresh-worker
   - product-cache-refresh-worker
   - dlq-handler
-- SSM parameters for resource names, ARNs and runtime discovery.
+- SSM parameters for resource names, ARNs, schedules and runtime discovery.
 
-## Why compute is not in this patch
+## Commands that do not require an AWS account
 
-The repo still does not contain production Dockerfiles or a build/push pipeline for the services and workers. Creating ECS services or Lambda functions now would force the IaC to reference images that do not exist. That would be fake infrastructure.
-
-The next AWS phase should add:
-
-1. one production Dockerfile pattern for Node services/workers,
-2. image build/push scripts or CI workflow,
-3. ECS/Fargate private services behind gateway,
-4. Lambda or containerized workers wired to SQS,
-5. least-privilege IAM roles for each service,
-6. EventBridge Scheduler rules for the two cache-refresh queues.
-
-## Commands
+These commands only compile, test and synthesize the CloudFormation template locally:
 
 ```powershell
 npm install
@@ -53,3 +48,22 @@ For a named environment:
 ```powershell
 npm run synth:cdk -- -c environmentName=staging
 ```
+
+## When an AWS account becomes required
+
+Create and configure the AWS account before the first real deploy step:
+
+```powershell
+aws configure
+npm run cdk -- bootstrap
+npm run cdk -- deploy
+```
+
+Do not run deploy commands until the account, region, billing alerts and bootstrap target are confirmed.
+
+## Next AWS work
+
+1. Add production Dockerfiles for services and workers.
+2. Add image build/push automation for the ECR repositories.
+3. Add deployed compute for the private services and async workers.
+4. Add API Gateway/Cognito/public boundary after compute is deployable.
