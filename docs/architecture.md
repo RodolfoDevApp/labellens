@@ -94,3 +94,7 @@ Lambdas should stay for background work only:
 - `dlq-handler`
 
 No current v1 scope for compare, recipe CRUD, pantry inventory or export/PDF jobs.
+
+## Local gateway boundary
+
+Local Compose uses the same public boundary intended for AWS: the browser talks to the gateway, and the gateway forwards `/api/v1/*` to the private API service. The API service is not published as a host port in Compose. This is an intermediate step before splitting the API process into separate private services.

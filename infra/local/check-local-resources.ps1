@@ -9,9 +9,12 @@ if (-not $localstackPort) {
   $localstackPort = "4566"
 }
 
-$apiPort = $env:LABEL_LENS_API_PORT
-if (-not $apiPort) {
-  $apiPort = "4000"
+$gatewayPort = $env:LABEL_LENS_GATEWAY_PORT
+if (-not $gatewayPort) {
+  $gatewayPort = $env:LABEL_LENS_API_PORT
+}
+if (-not $gatewayPort) {
+  $gatewayPort = "4000"
 }
 
 $endpoint = $env:AWS_ENDPOINT_URL
@@ -21,7 +24,7 @@ if (-not $endpoint) {
 
 $apiBaseUrl = $env:LABEL_LENS_API_BASE_URL
 if (-not $apiBaseUrl) {
-  $apiBaseUrl = "http://localhost:$apiPort"
+  $apiBaseUrl = "http://localhost:$gatewayPort"
 }
 
 $region = $env:AWS_REGION
@@ -43,13 +46,9 @@ if (-not (Get-Command aws -ErrorAction SilentlyContinue)) {
 }
 
 function Invoke-AwsCliJson {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string[]] $CliArgs
-  )
+  param([Parameter(Mandatory = $true)][string[]] $CliArgs)
 
   $fullArgs = @("--endpoint-url", $endpoint, "--region", $region, "--output", "json") + $CliArgs
-
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
 
@@ -74,13 +73,9 @@ function Invoke-AwsCliJson {
 }
 
 function Invoke-AwsCliText {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string[]] $CliArgs
-  )
+  param([Parameter(Mandatory = $true)][string[]] $CliArgs)
 
   $fullArgs = @("--endpoint-url", $endpoint, "--region", $region) + $CliArgs
-
   $previousErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
 
@@ -101,10 +96,7 @@ function Invoke-AwsCliText {
 }
 
 function Get-QueueUrlOrNull {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string] $QueueName
-  )
+  param([Parameter(Mandatory = $true)][string] $QueueName)
 
   $queueUrl = Invoke-AwsCliText -CliArgs @(
     "sqs", "list-queues",
@@ -121,43 +113,30 @@ function Get-QueueUrlOrNull {
 }
 
 function Get-RequiredQueueUrl {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string] $QueueName
-  )
+  param([Parameter(Mandatory = $true)][string] $QueueName)
 
   $queueUrl = Get-QueueUrlOrNull -QueueName $QueueName
 
   if (-not $queueUrl) {
-    throw "SQS queue $QueueName does not exist."
+    throw "SQS queue $QueueName does not exist. Run npm run local:init."
   }
 
   return $queueUrl
 }
 
 function Assert-QueueExists {
-  param(
-    [Parameter(Mandatory = $true)]
-    [string] $QueueName
-  )
-
+  param([Parameter(Mandatory = $true)][string] $QueueName)
   Get-RequiredQueueUrl -QueueName $QueueName | Out-Null
 }
 
 function Assert-QueueRedrivePolicy {
   param(
-    [Parameter(Mandatory = $true)]
-    [string] $QueueName,
-
-    [Parameter(Mandatory = $true)]
-    [string] $ExpectedDlqName,
-
-    [Parameter(Mandatory = $true)]
-    [string] $ExpectedMaxReceiveCount
+    [Parameter(Mandatory = $true)][string] $QueueName,
+    [Parameter(Mandatory = $true)][string] $ExpectedDlqName,
+    [Parameter(Mandatory = $true)][string] $ExpectedMaxReceiveCount
   )
 
   $queueUrl = Get-RequiredQueueUrl -QueueName $QueueName
-
   $attributes = Invoke-AwsCliJson -CliArgs @(
     "sqs", "get-queue-attributes",
     "--queue-url", $queueUrl,
@@ -165,7 +144,7 @@ function Assert-QueueRedrivePolicy {
   )
 
   if (-not $attributes.Attributes.RedrivePolicy) {
-    throw "Queue $QueueName is missing RedrivePolicy."
+    throw "Queue $QueueName is missing RedrivePolicy. Run npm run local:init."
   }
 
   $redrive = $attributes.Attributes.RedrivePolicy | ConvertFrom-Json
@@ -179,7 +158,7 @@ function Assert-QueueRedrivePolicy {
   }
 }
 
-Write-Host "Checking API health at $apiBaseUrl/api/v1/health..."
+Write-Host "Checking gateway API health at $apiBaseUrl/api/v1/health..."
 $health = Invoke-RestMethod -Uri "$apiBaseUrl/api/v1/health" -Method Get
 
 if ($health.status -ne "ok") {
@@ -191,19 +170,13 @@ if ($health.storageDriver -ne "dynamodb") {
 }
 
 Write-Host "Checking DynamoDB table $tableName at $endpoint..."
-$table = Invoke-AwsCliJson -CliArgs @(
-  "dynamodb", "describe-table",
-  "--table-name", $tableName
-)
+$table = Invoke-AwsCliJson -CliArgs @("dynamodb", "describe-table", "--table-name", $tableName)
 
 if ($table.Table.TableStatus -ne "ACTIVE") {
   throw "DynamoDB table $tableName is not ACTIVE."
 }
 
-$ttl = Invoke-AwsCliJson -CliArgs @(
-  "dynamodb", "describe-time-to-live",
-  "--table-name", $tableName
-)
+$ttl = Invoke-AwsCliJson -CliArgs @("dynamodb", "describe-time-to-live", "--table-name", $tableName)
 
 if ($ttl.TimeToLiveDescription.AttributeName -ne "expiresAt") {
   throw "DynamoDB TTL attribute must be expiresAt."
@@ -214,18 +187,9 @@ if ($ttl.TimeToLiveDescription.TimeToLiveStatus -ne "ENABLED") {
 }
 
 Write-Host "Checking SQS queues and redrive policies..."
-
 Assert-QueueExists -QueueName "labellens-product-not-found-dlq"
 Assert-QueueExists -QueueName "labellens-analytics-dlq"
+Assert-QueueRedrivePolicy -QueueName "labellens-product-not-found-queue" -ExpectedDlqName "labellens-product-not-found-dlq" -ExpectedMaxReceiveCount "3"
+Assert-QueueRedrivePolicy -QueueName "labellens-analytics-queue" -ExpectedDlqName "labellens-analytics-dlq" -ExpectedMaxReceiveCount "5"
 
-Assert-QueueRedrivePolicy `
-  -QueueName "labellens-product-not-found-queue" `
-  -ExpectedDlqName "labellens-product-not-found-dlq" `
-  -ExpectedMaxReceiveCount "3"
-
-Assert-QueueRedrivePolicy `
-  -QueueName "labellens-analytics-queue" `
-  -ExpectedDlqName "labellens-analytics-dlq" `
-  -ExpectedMaxReceiveCount "5"
-
-Write-Host "Local enterprise resources verified: API health, DynamoDB table, TTL, SQS queues and DLQ redrive policies."
+Write-Host "Local enterprise resources verified through gateway: API health, DynamoDB table, TTL, SQS queues and DLQ redrive policies."

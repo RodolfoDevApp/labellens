@@ -21,11 +21,14 @@
     "export": "powershell -ExecutionPolicy Bypass -File scripts/export-repo.ps1",
     "dev:web": "npm run dev -w apps/web",
     "dev:api": "npm run dev -w apps/api",
+    "dev:gateway": "npm run dev -w @labellens/gateway",
     "build:domain": "npm run build -w @labellens/domain",
     "build:api": "npm run build -w @labellens/api",
+    "build:gateway": "npm run build -w @labellens/gateway",
     "build:web": "npm run build -w web",
     "build:infrastructure": "npm run build -w @labellens/infrastructure",
     "compose:logs:api": "docker compose -f infra/compose/docker-compose.yml logs -f api",
+    "compose:logs:gateway": "docker compose -f infra/compose/docker-compose.yml logs -f gateway",
     "compose:logs:localstack": "docker compose -f infra/compose/docker-compose.yml logs -f localstack",
     "local:init": "powershell -ExecutionPolicy Bypass -File infra/local/init-localstack.ps1",
     "local:persistence:smoke": "powershell -ExecutionPolicy Bypass -File infra/local/smoke-local-persistence.ps1",
@@ -33,7 +36,8 @@
     "local:resources:check": "powershell -ExecutionPolicy Bypass -File infra/local/check-local-resources.ps1",
     "build:contracts": "npm run build -w @labellens/contracts",
     "generate:openapi": "npm run build:contracts && npm run generate:openapi -w @labellens/contracts",
-    "check:openapi": "npm run build:contracts && npm run check:openapi -w @labellens/contracts"
+    "check:openapi": "npm run build:contracts && npm run check:openapi -w @labellens/contracts",
+    "test:gateway": "npm run test -w @labellens/gateway"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

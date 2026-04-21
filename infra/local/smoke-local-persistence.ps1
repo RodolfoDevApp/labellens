@@ -1,10 +1,22 @@
 param(
-  [string] $BaseUrl = "http://localhost:4000",
+  [string] $BaseUrl = "",
   [string] $ComposeFile = "infra/compose/docker-compose.yml",
   [switch] $KeepData
 )
 
 $ErrorActionPreference = "Stop"
+
+if ([string]::IsNullOrWhiteSpace($BaseUrl)) {
+  $gatewayPort = $env:LABEL_LENS_GATEWAY_PORT
+  if (-not $gatewayPort) {
+    $gatewayPort = $env:LABEL_LENS_API_PORT
+  }
+  if (-not $gatewayPort) {
+    $gatewayPort = "4000"
+  }
+
+  $BaseUrl = "http://localhost:$gatewayPort"
+}
 
 function Convert-ToJsonBody {
   param([object] $Value)
@@ -55,7 +67,7 @@ function Wait-ApiReady {
     }
   }
 
-  throw "API did not become ready at $BaseUrl. Run npm run compose:up and check npm run compose:logs:api."
+  throw "Gateway/API did not become ready at $BaseUrl. Run npm run compose:up and check npm run compose:logs:gateway and npm run compose:logs:api."
 }
 
 function New-NutritionFacts {
@@ -125,18 +137,18 @@ function Assert-ContainsId {
   }
 }
 
-Write-Host "Waiting for LabelLens API at $BaseUrl..."
+Write-Host "Waiting for LabelLens gateway at $BaseUrl..."
 $health = Wait-ApiReady
 
 if ($health.storageDriver -ne "dynamodb") {
-  throw "Expected API storageDriver=dynamodb, got '$($health.storageDriver)'. Run npm run compose:up instead of npm run dev:api."
+  throw "Expected API storageDriver=dynamodb through gateway, got '$($health.storageDriver)'. Run npm run compose:up instead of npm run dev:api."
 }
 
 $runId = [System.Guid]::NewGuid().ToString("N").Substring(0, 8)
 $login = Invoke-ApiJson -Method POST -Path "/api/v1/auth/demo-login" -Body @{ displayName = "Smoke persistence" }
 $headers = @{ Authorization = "Bearer $($login.accessToken)" }
 
-Write-Host "Saving menu and favorite through the HTTP API..."
+Write-Host "Saving menu and favorite through the gateway HTTP API..."
 $savedMenu = Invoke-ApiJson -Method POST -Path "/api/v1/menus" -Headers $headers -Body (New-MenuPayload -RunId $runId)
 $savedFavorite = Invoke-ApiJson -Method POST -Path "/api/v1/favorites" -Headers $headers -Body (New-FavoritePayload)
 
@@ -151,7 +163,7 @@ if (-not $favoriteId) {
   throw "Favorite save response did not include item.id."
 }
 
-Write-Host "Restarting API container to prove data is not in process memory..."
+Write-Host "Restarting API container to prove data is not in process memory and gateway keeps the public boundary..."
 docker compose -f $ComposeFile restart api | Out-Host
 $healthAfterRestart = Wait-ApiReady
 
@@ -162,7 +174,7 @@ if ($healthAfterRestart.storageDriver -ne "dynamodb") {
 $loginAfterRestart = Invoke-ApiJson -Method POST -Path "/api/v1/auth/demo-login" -Body @{ displayName = "Smoke persistence" }
 $headersAfterRestart = @{ Authorization = "Bearer $($loginAfterRestart.accessToken)" }
 
-Write-Host "Reading menus and favorites after restart..."
+Write-Host "Reading menus and favorites through gateway after API restart..."
 $menusAfterRestart = Invoke-ApiJson -Method GET -Path "/api/v1/menus" -Headers $headersAfterRestart
 $favoritesAfterRestart = Invoke-ApiJson -Method GET -Path "/api/v1/favorites" -Headers $headersAfterRestart
 
@@ -175,4 +187,4 @@ if (-not $KeepData) {
   Invoke-ApiJson -Method DELETE -Path "/api/v1/favorites/$favoriteId" -Headers $headersAfterRestart | Out-Null
 }
 
-Write-Host "Local DynamoDB persistence verified. Menu and favorite survived API restart."
+Write-Host "Local gateway + DynamoDB persistence verified. Menu and favorite survived API restart."
