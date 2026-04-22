@@ -1,157 +1,47 @@
-# AWS deployment plan
+# LabelLens AWS deployment
 
-Fase 8 codifies the AWS track from the local enterprise runtime that already passed LocalStack, SQS, workers and DLQ smokes.
+## Current deployed shape
 
-## Current AWS IaC scope
+LabelLens `dev` is deployed as an AWS CDK stack named `LabelLens-dev`.
 
-The CDK stack creates:
+The public boundary is the Application Load Balancer. Only the `gateway` ECS/Fargate service is reachable from the internet. Internal services and workers are private ECS/Fargate services in private subnets.
 
-- DynamoDB single-table design with `PK`, `SK`, TTL on `expiresAt`, on-demand billing and PITR.
-- Four sealed source queues plus four DLQs with `maxReceiveCount = 3`:
-  - product-not-found
-  - analytics
-  - food-cache-refresh
-  - product-cache-refresh
-- EventBridge Scheduler group.
-- Daily EventBridge Scheduler schedules that publish sealed scheduler events to SQS:
-  - `cache.refresh.food.requested.v1` at `03:00 UTC`.
-  - `cache.refresh.product.requested.v1` at `03:15 UTC`.
-- IAM role allowing EventBridge Scheduler to call `sqs:SendMessage` only on the two cache-refresh queues.
-- Scheduler target DLQ wiring to the corresponding cache-refresh DLQs.
-- CloudWatch alarms for DLQs and queue age.
-- ECR repositories for all services and workers.
-- VPC with public and private-with-egress subnets.
-- ECS cluster with container insights enabled.
-- Shared ECS service security group for private service-to-service HTTP.
-- Private DNS namespace for future ECS service discovery.
-- Fargate task definitions for all 11 deployable containers.
-- ECS Fargate services for all 11 deployable services and workers.
-- Cloud Map service discovery for the six HTTP services using A records in the private namespace.
-- Private subnet placement with no public IP assignment for every ECS service.
-- Shared service security group allowing only LabelLens private service-to-service HTTP range.
-- CloudWatch log groups for every service and worker.
-- Runtime environment wiring for DynamoDB, SQS queues and private service URLs.
-- Task role grants for DynamoDB read/write plus only the SQS send/consume permissions each service or worker needs.
-- SSM parameters for resource names, ARNs, schedules, VPC, ECS cluster, namespace, task definition ARNs and ECS service names/ARNs.
+## Main AWS resource map
 
-## Phase 8B container foundation
+| Project concept | AWS resource |
+| --- | --- |
+| Microservices and workers | Amazon ECS on AWS Fargate |
+| Container registry | Amazon ECR |
+| Public ingress | Application Load Balancer |
+| Internal service discovery | AWS Cloud Map private DNS namespace |
+| Database / single table | Amazon DynamoDB |
+| Message queues / async bus | Amazon SQS queues + DLQs |
+| Scheduled cache refresh | Amazon EventBridge Scheduler publishing to SQS |
+| Configuration registry | AWS Systems Manager Parameter Store |
+| Metrics and alarms | Amazon CloudWatch |
+| Infra-as-code | AWS CDK / CloudFormation |
 
-The repository includes production-style container foundation files under `infra/docker`:
+There are no Lambda functions in the current phase. The deployable runtime is container-based: six HTTP services and five workers running on ECS/Fargate.
 
-- `Dockerfile.node`: shared multi-stage Node 24 Dockerfile for services and workers.
-- `services.json`: deployable image manifest matching the CDK ECR repository names.
-- `build-images.ps1`: local Docker image build script.
-- `tag-images.ps1`: future ECR tag script.
-- `push-images.ps1`: future ECR push script.
-- `check-container-foundation.ps1`: static validation for Dockerfile, manifest and package start scripts.
-
-Local checks do not require AWS:
+## Useful commands
 
 ```powershell
-npm run containers:check
-npm run containers:build -- -Tag local
-```
-
-ECR tagging/pushing requires an AWS account, AWS CLI credentials and CDK-created ECR repositories:
-
-```powershell
-npm run containers:tag -- -AccountId 123456789012 -Region us-east-1 -Environment dev -LocalTag local -RemoteTag latest
-npm run containers:push -- -AccountId 123456789012 -Region us-east-1 -Environment dev -RemoteTag latest
-```
-
-## Commands that do not require an AWS account
-
-These commands only compile, test and synthesize the CloudFormation template locally:
-
-```powershell
-npm install
-npm run build:cdk
-npm run test:cdk
-npm run synth:cdk
-```
-
-For a named environment:
-
-```powershell
-npm run synth:cdk -- -c environmentName=staging
-```
-
-## When an AWS account becomes required
-
-Create and configure the AWS account before the first real deploy step:
-
-```powershell
-aws configure
-npm run cdk -- bootstrap
-npm run cdk -- deploy
-```
-
-Do not run deploy commands until the account, region, billing alerts and bootstrap target are confirmed.
-
-## Phase 8D ECS services and service discovery
-
-Phase 8D turns the task definitions into deployable ECS Fargate services while still avoiding real AWS deployment. The CDK template now synthesizes private ECS services for the gateway, five private HTTP services and five async workers. HTTP services are registered in the private Cloud Map namespace using A records so internal URLs remain stable, for example `http://product-service.labellens-dev.local:4102`.
-
-Workers are also ECS Fargate services, but they are not registered in Cloud Map because no other container calls them over HTTP. They run in private subnets without public IPs and receive only their required SQS/DynamoDB permissions.
-
-## Next AWS work
-
-1. Add HTTPS/custom domain and certificate management for the ALB.
-2. Add WAF and Cognito/JWT authorization at the public boundary.
-3. Add deployment-time image tag strategy and environment overrides.
-4. Deploy, tag and push images to ECR once the AWS account is ready.
-
-## Phase 8E public gateway ingress
-
-Phase 8E adds the first public AWS entry point without deploying it yet:
-
-- One internet-facing Application Load Balancer.
-- One HTTP listener on port `80`.
-- One target group for the `gateway` ECS service only.
-- Target health checks on `/gateway/health` using HTTP `200`.
-- A dedicated public ALB security group with inbound HTTP from the configured CIDR list.
-- A dedicated gateway ECS security group so ALB traffic cannot reach private HTTP services or async workers directly.
-- Private services remain behind Cloud Map and are still called only through the gateway or internal workers.
-- SSM parameters for ALB DNS name, ALB ARN, ALB security group, HTTP listener ARN, gateway target group ARN and gateway public URL.
-
-The public boundary remains intentionally narrow:
-
-```text
-internet -> public ALB :80 -> gateway ECS service :4000 -> private services via Cloud Map
-```
-
-No private service, worker, SQS queue or DynamoDB table is exposed by this phase.
-
-## Phase 8F deploy hardening
-
-Phase 8F adds deployment safety and observability without requiring an AWS account yet:
-
-- ECS deployment circuit breaker with rollback is enabled for every Fargate service.
-- ECS managed tags are enabled and service tags are propagated to tasks.
-- Rolling deployment bounds are explicit: minimum healthy `100%`, maximum healthy `200%`.
-- Gateway ECS service gets a `60s` health-check grace period for ALB target registration.
-- Gateway ECS service has CPU target-tracking autoscaling from `1` to `3` tasks at `60%` CPU.
-- Gateway target group has CloudWatch alarms for unhealthy hosts, target 5xx responses and slow target response time.
-- Gateway alarm names are exported to SSM for later deployment automation.
-
-TLS, custom domain, WAF and Cognito/JWT enforcement remain future blocks.
-
-
-## Phase 8G AWS first-deploy readiness
-
-Phase 8G adds deployment mode `bootstrap` and `release`. `bootstrap` creates AWS infrastructure with ECS desired count 0, allowing ECR repositories to exist before images are pushed. `release` restores normal desired counts and gateway autoscaling.
-
-Local validation without AWS:
-
-```powershell
-npm run aws:deploy:check
-```
-
-First deploy after account creation:
-
-```powershell
-npm run aws:first-deploy -- -Environment dev -Region us-east-1 -ImageTag latest
+npm run aws:status -- -Environment dev -Region us-east-1
 npm run aws:smoke -- -Environment dev -Region us-east-1
+npm run aws:pause -- -Environment dev -Region us-east-1
+npm run aws:resume -- -Environment dev -Region us-east-1 -ImageTag latest -Smoke
 ```
 
-Supported CDK overrides: `environmentName`, `deploymentMode`, `imageTag`, `gatewayAllowedOrigins` and `ingressAllowedCidrs`.
+`aws:pause` is a soft pause. It scales ECS/Fargate services to zero through CDK bootstrap mode. It does not delete ALB, NAT Gateway, DynamoDB, SQS, ECR or CloudWatch resources.
+
+## Console navigation
+
+- CloudFormation: search `CloudFormation`, open stack `LabelLens-dev`.
+- ECS: search `Elastic Container Service`, open cluster `labellens-dev-cluster`, then Services.
+- ECR: search `Elastic Container Registry`, open repositories starting with `labellens-dev/`.
+- DynamoDB: search `DynamoDB`, open table `labellens-dev-table`.
+- SQS: search `Simple Queue Service`, open queues starting with `labellens-dev-`.
+- EventBridge Scheduler: search `EventBridge Scheduler`, open schedule group `labellens-dev-schedules`.
+- Parameter Store: search `Systems Manager`, then `Parameter Store`, filter `/labellens-dev/`.
+- CloudWatch: search `CloudWatch`, then `Log groups` and `Alarms`, filter `labellens-dev`.
+- ALB: search `EC2`, then `Load Balancers`, find the load balancer whose DNS is exported by the stack.

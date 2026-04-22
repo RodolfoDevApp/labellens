@@ -102,7 +102,11 @@
     "aws:diff": "powershell -ExecutionPolicy Bypass -File infra/aws/diff-cdk.ps1",
     "aws:deploy": "powershell -ExecutionPolicy Bypass -File infra/aws/deploy-cdk.ps1",
     "aws:first-deploy": "powershell -ExecutionPolicy Bypass -File infra/aws/first-deploy.ps1",
-    "aws:smoke": "powershell -ExecutionPolicy Bypass -File infra/aws/smoke-gateway.ps1"
+    "aws:smoke": "powershell -ExecutionPolicy Bypass -File infra/aws/smoke-gateway.ps1",
+    "aws:status": "powershell -ExecutionPolicy Bypass -File infra/aws/status-environment.ps1",
+    "aws:pause": "powershell -ExecutionPolicy Bypass -File infra/aws/pause-environment.ps1",
+    "aws:resume": "powershell -ExecutionPolicy Bypass -File infra/aws/resume-environment.ps1",
+    "aws:destroy": "powershell -ExecutionPolicy Bypass -File infra/aws/destroy-environment.ps1"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

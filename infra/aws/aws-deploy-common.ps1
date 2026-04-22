@@ -22,6 +22,16 @@ function Get-ProfileArgs {
   return @("--profile", $Profile)
 }
 
+function Get-ProfileScriptArgs {
+  param([string] $Profile = "")
+
+  if ([string]::IsNullOrWhiteSpace($Profile)) {
+    return @()
+  }
+
+  return @("-Profile", $Profile)
+}
+
 function Invoke-NativeCommand {
   param(
     [Parameter(Mandatory = $true)][string] $FileName,
