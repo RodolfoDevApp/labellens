@@ -4,6 +4,7 @@ import type { LabelLensAwsConfig } from "../config/label-lens-aws-config.js";
 import { LabelLensComputeConstruct } from "../constructs/label-lens-compute-construct.js";
 import { LabelLensContainerRepositoriesConstruct } from "../constructs/label-lens-container-repositories-construct.js";
 import { LabelLensDataConstruct } from "../constructs/label-lens-data-construct.js";
+import { LabelLensIngressConstruct } from "../constructs/label-lens-ingress-construct.js";
 import { LabelLensMessagingConstruct } from "../constructs/label-lens-messaging-construct.js";
 import { LabelLensOperationalParametersConstruct } from "../constructs/label-lens-operational-parameters-construct.js";
 import { LabelLensSchedulesConstruct } from "../constructs/label-lens-schedules-construct.js";
@@ -63,6 +64,20 @@ export class LabelLensAwsStack extends Stack {
       compute: props.config.compute,
     });
 
+    const gatewayService = compute.services.gateway;
+
+    if (!gatewayService) {
+      throw new Error("Missing gateway ECS service for public ingress.");
+    }
+
+    const ingress = new LabelLensIngressConstruct(this, "Ingress", {
+      resourcePrefix: props.config.resourcePrefix,
+      vpc: compute.vpc,
+      gatewayService,
+      gatewayIngressSecurityGroup: compute.gatewayIngressSecurityGroup,
+      ingress: props.config.ingress,
+    });
+
     new LabelLensOperationalParametersConstruct(this, "OperationalParameters", {
       resourcePrefix: props.config.resourcePrefix,
       environmentName: props.config.environmentName,
@@ -94,6 +109,10 @@ export class LabelLensAwsStack extends Stack {
 
     new CfnOutput(this, "VpcId", {
       value: compute.vpc.vpcId,
+    });
+
+    new CfnOutput(this, "GatewayLoadBalancerDnsName", {
+      value: ingress.loadBalancer.loadBalancerDnsName,
     });
   }
 }

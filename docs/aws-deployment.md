@@ -96,7 +96,28 @@ Workers are also ECS Fargate services, but they are not registered in Cloud Map 
 
 ## Next AWS work
 
-1. Add public ingress for the gateway through API Gateway/ALB/VPC Link or the selected final boundary.
-2. Add Cognito/JWT authorization at the public boundary.
+1. Add HTTPS/custom domain and certificate management for the ALB.
+2. Add WAF and Cognito/JWT authorization at the public boundary.
 3. Add deployment-time image tag strategy and environment overrides.
 4. Deploy, tag and push images to ECR once the AWS account is ready.
+
+## Phase 8E public gateway ingress
+
+Phase 8E adds the first public AWS entry point without deploying it yet:
+
+- One internet-facing Application Load Balancer.
+- One HTTP listener on port `80`.
+- One target group for the `gateway` ECS service only.
+- Target health checks on `/gateway/health` using HTTP `200`.
+- A dedicated public ALB security group with inbound HTTP from the configured CIDR list.
+- A dedicated gateway ECS security group so ALB traffic cannot reach private HTTP services or async workers directly.
+- Private services remain behind Cloud Map and are still called only through the gateway or internal workers.
+- SSM parameters for ALB DNS name, ALB ARN, ALB security group, HTTP listener ARN, gateway target group ARN and gateway public URL.
+
+The public boundary remains intentionally narrow:
+
+```text
+internet -> public ALB :80 -> gateway ECS service :4000 -> private services via Cloud Map
+```
+
+No private service, worker, SQS queue or DynamoDB table is exposed by this phase. TLS, custom domain, WAF and Cognito/JWT enforcement remain future blocks.

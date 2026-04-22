@@ -46,6 +46,15 @@ type EcsServiceProperties = {
     };
   };
   ServiceRegistries?: unknown[];
+  LoadBalancers?: Array<{
+    ContainerName?: string;
+    ContainerPort?: number;
+    TargetGroupArn?: unknown;
+  }>;
+  DeploymentConfiguration?: {
+    MaximumPercent?: number;
+    MinimumHealthyPercent?: number;
+  };
 };
 
 function synthesizeTemplate() {
@@ -361,8 +370,19 @@ describe("LabelLensAwsStack", () => {
       GroupName: "labellens-test-service-sg",
     });
 
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupDescription: "Allows the public load balancer to reach only the LabelLens gateway task.",
+      GroupName: "labellens-test-gateway-ingress-sg",
+    });
+
     template.hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
       FromPort: 4000,
+      IpProtocol: "tcp",
+      ToPort: 4105,
+    });
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
+      FromPort: 4101,
       IpProtocol: "tcp",
       ToPort: 4105,
     });
@@ -427,12 +447,16 @@ describe("LabelLensAwsStack", () => {
     expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.SecurityGroups ?? []).toHaveLength(1);
     expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.Subnets ?? []).toHaveLength(2);
     expect(gatewayService.ServiceRegistries).toBeDefined();
+    expect(gatewayService.DeploymentConfiguration?.MaximumPercent).toBe(200);
+    expect(gatewayService.DeploymentConfiguration?.MinimumHealthyPercent).toBe(100);
 
     const analyticsWorkerService = getServiceProperties(findServiceByName(template, "labellens-test-analytics-worker"));
     expect(analyticsWorkerService.DesiredCount).toBe(1);
     expect(analyticsWorkerService.LaunchType).toBe("FARGATE");
     expect(analyticsWorkerService.NetworkConfiguration?.AwsvpcConfiguration?.AssignPublicIp).toBe("DISABLED");
     expect(analyticsWorkerService.ServiceRegistries).toBeUndefined();
+    expect(analyticsWorkerService.DeploymentConfiguration?.MaximumPercent).toBe(200);
+    expect(analyticsWorkerService.DeploymentConfiguration?.MinimumHealthyPercent).toBe(100);
 
     template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
       Name: "gateway",
@@ -457,6 +481,79 @@ describe("LabelLensAwsStack", () => {
         ]),
       }),
     });
+  });
+
+
+  it("creates public ALB ingress for gateway only", () => {
+    const template = synthesizeTemplate();
+
+    template.resourceCountIs("AWS::ElasticLoadBalancingV2::LoadBalancer", 1);
+    template.resourceCountIs("AWS::ElasticLoadBalancingV2::Listener", 1);
+    template.resourceCountIs("AWS::ElasticLoadBalancingV2::TargetGroup", 1);
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupDescription: "Allows public HTTP ingress to the LabelLens gateway load balancer.",
+      GroupName: "labellens-test-public-alb-sg",
+    });
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
+      CidrIp: "0.0.0.0/0",
+      FromPort: 80,
+      IpProtocol: "tcp",
+      ToPort: 80,
+    });
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
+      FromPort: 4000,
+      IpProtocol: "tcp",
+      ToPort: 4000,
+    });
+
+    template.hasResourceProperties("AWS::ElasticLoadBalancingV2::LoadBalancer", {
+      Scheme: "internet-facing",
+      Type: "application",
+    });
+
+    template.hasResourceProperties("AWS::ElasticLoadBalancingV2::Listener", {
+      Port: 80,
+      Protocol: "HTTP",
+    });
+
+    template.hasResourceProperties("AWS::ElasticLoadBalancingV2::TargetGroup", {
+      HealthCheckIntervalSeconds: 30,
+      HealthCheckPath: "/gateway/health",
+      HealthCheckTimeoutSeconds: 5,
+      HealthyThresholdCount: 2,
+      Matcher: {
+        HttpCode: "200",
+      },
+      Port: 4000,
+      Protocol: "HTTP",
+      TargetType: "ip",
+      UnhealthyThresholdCount: 3,
+    });
+
+    const gatewayService = getServiceProperties(findServiceByName(template, "labellens-test-gateway"));
+    expect(gatewayService.LoadBalancers ?? []).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ContainerName: "gateway",
+          ContainerPort: 4000,
+        }),
+      ]),
+    );
+
+    for (const internalServiceName of [
+      "labellens-test-auth-service",
+      "labellens-test-food-service",
+      "labellens-test-product-service",
+      "labellens-test-menu-service",
+      "labellens-test-favorites-service",
+      "labellens-test-analytics-worker",
+    ]) {
+      const service = getServiceProperties(findServiceByName(template, internalServiceName));
+      expect(service.LoadBalancers).toBeUndefined();
+    }
   });
 
   it("creates one ECR repository per deployable service and worker", () => {
@@ -496,14 +593,21 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/ecs/cluster-arn");
     expectStringParameter(template, "/labellens-test/network/vpc-id");
     expectStringParameter(template, "/labellens-test/network/service-security-group-id");
+    expectStringParameter(template, "/labellens-test/network/gateway-ingress-security-group-id");
     expectStringParameter(template, "/labellens-test/service-discovery/private-dns-namespace-name", "labellens-test.local");
     expectStringParameter(template, "/labellens-test/ecs/task-definitions/gateway/arn");
     expectStringParameter(template, "/labellens-test/ecs/services/gateway/name", "labellens-test-gateway");
     expectStringParameter(template, "/labellens-test/ecs/services/gateway/arn");
     expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/name", "labellens-test-analytics-worker");
     expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/arn");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-alb/dns-name");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-alb/arn");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-alb/security-group-id");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-alb/http-listener-arn");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-alb/target-group-arn");
+    expectStringParameter(template, "/labellens-test/ingress/gateway-url");
 
-    template.resourceCountIs("AWS::SSM::Parameter", 84);
+    template.resourceCountIs("AWS::SSM::Parameter", 91);
   });
 
   it("alarms on DLQ messages and queue age", () => {

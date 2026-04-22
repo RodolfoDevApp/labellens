@@ -4,6 +4,7 @@ export type LabelLensAwsConfig = {
   tableName: string;
   containerRepositoryNames: readonly string[];
   compute: ComputeConfig;
+  ingress: IngressConfig;
   queues: {
     productNotFound: QueueConfig;
     analytics: QueueConfig;
@@ -17,10 +18,24 @@ export type LabelLensAwsConfig = {
   };
 };
 
+export type IngressConfig = {
+  loadBalancerSecurityGroupName: string;
+  httpPort: number;
+  gatewayTargetPort: number;
+  gatewayHealthCheckPath: string;
+  gatewayHealthCheckHealthyHttpCodes: string;
+  healthCheckIntervalSeconds: number;
+  healthCheckTimeoutSeconds: number;
+  healthyThresholdCount: number;
+  unhealthyThresholdCount: number;
+  allowedCidrBlocks: readonly string[];
+};
+
 export type ComputeConfig = {
   vpcName: string;
   clusterName: string;
   serviceSecurityGroupName: string;
+  gatewayIngressSecurityGroupName: string;
   privateDnsNamespaceName: string;
   imageTag: string;
   maxAzs: number;
@@ -29,6 +44,8 @@ export type ComputeConfig = {
   serviceDiscoveryTtlSeconds: number;
   defaultServiceDesiredCount: number;
   defaultWorkerDesiredCount: number;
+  deploymentMinHealthyPercent: number;
+  deploymentMaxHealthyPercent: number;
   defaultTask: {
     cpu: number;
     memoryLimitMiB: number;
@@ -84,6 +101,7 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       vpcName: `${resourcePrefix}-vpc`,
       clusterName: `${resourcePrefix}-cluster`,
       serviceSecurityGroupName: `${resourcePrefix}-service-sg`,
+      gatewayIngressSecurityGroupName: `${resourcePrefix}-gateway-ingress-sg`,
       privateDnsNamespaceName: `${resourcePrefix}.local`,
       imageTag: "latest",
       maxAzs: 2,
@@ -92,6 +110,8 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       serviceDiscoveryTtlSeconds: 30,
       defaultServiceDesiredCount: 1,
       defaultWorkerDesiredCount: 1,
+      deploymentMinHealthyPercent: 100,
+      deploymentMaxHealthyPercent: 200,
       defaultTask: {
         cpu: 256,
         memoryLimitMiB: 512,
@@ -109,6 +129,18 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
         { name: "product-cache-refresh-worker", kind: "worker" },
         { name: "dlq-handler", kind: "worker" },
       ],
+    },
+    ingress: {
+      loadBalancerSecurityGroupName: `${resourcePrefix}-public-alb-sg`,
+      httpPort: 80,
+      gatewayTargetPort: 4000,
+      gatewayHealthCheckPath: "/gateway/health",
+      gatewayHealthCheckHealthyHttpCodes: "200",
+      healthCheckIntervalSeconds: 30,
+      healthCheckTimeoutSeconds: 5,
+      healthyThresholdCount: 2,
+      unhealthyThresholdCount: 3,
+      allowedCidrBlocks: ["0.0.0.0/0"],
     },
     queues: {
       productNotFound: {

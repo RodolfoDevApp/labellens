@@ -96,4 +96,17 @@ Phase 8D turns the synthesized task definitions into ECS Fargate services withou
 - All services run in private-with-egress subnets with public IP assignment disabled.
 - ECS service names and ARNs are exported to SSM for deployment automation.
 
-The next AWS block should add the public gateway ingress path and auth boundary.
+The public gateway ingress path is now represented by Phase 8E. The next AWS block should add HTTPS/custom domain, WAF and auth boundary controls.
+
+## Phase 8E status
+
+Phase 8E adds the AWS public ingress foundation while keeping the gateway as the only public backend boundary:
+
+- Internet-facing ALB is synthesized.
+- HTTP listener routes only to the gateway ECS service.
+- Gateway target group uses `/gateway/health` for ALB health checks.
+- The gateway gets a dedicated ECS security group for public ingress.
+- Internal services and workers remain private and are not registered as load balancer targets.
+- ALB operational values are exported to SSM for later deployment automation.
+
+The next AWS block should add the production public boundary controls: HTTPS/custom domain, certificate management, WAF and Cognito/JWT authorization.

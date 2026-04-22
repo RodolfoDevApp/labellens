@@ -39,6 +39,7 @@ export type LabelLensComputeConstructProps = {
 export class LabelLensComputeConstruct extends Construct {
   readonly vpc: Vpc;
   readonly serviceSecurityGroup: SecurityGroup;
+  readonly gatewayIngressSecurityGroup: SecurityGroup;
   readonly cluster: Cluster;
   readonly privateDnsNamespace: PrivateDnsNamespace;
   readonly taskDefinitions: Record<string, FargateTaskDefinition> = {};
@@ -73,10 +74,24 @@ export class LabelLensComputeConstruct extends Construct {
       disableInlineRules: true,
     });
 
+    this.gatewayIngressSecurityGroup = new SecurityGroup(this, "GatewayIngressSecurityGroup", {
+      vpc: this.vpc,
+      securityGroupName: props.compute.gatewayIngressSecurityGroupName,
+      description: "Allows the public load balancer to reach only the LabelLens gateway task.",
+      allowAllOutbound: true,
+      disableInlineRules: true,
+    });
+
     this.serviceSecurityGroup.addIngressRule(
       Peer.securityGroupId(this.serviceSecurityGroup.securityGroupId),
       Port.tcpRange(4000, 4105),
       "Allow LabelLens private service-to-service HTTP traffic.",
+    );
+
+    this.serviceSecurityGroup.addIngressRule(
+      Peer.securityGroupId(this.gatewayIngressSecurityGroup.securityGroupId),
+      Port.tcpRange(4101, 4105),
+      "Allow the gateway to call private LabelLens HTTP services.",
     );
 
     this.cluster = new Cluster(this, "Cluster", {
@@ -113,6 +128,11 @@ export class LabelLensComputeConstruct extends Construct {
     new StringParameter(this, "ServiceSecurityGroupIdParameter", {
       parameterName: `/${props.resourcePrefix}/network/service-security-group-id`,
       stringValue: this.serviceSecurityGroup.securityGroupId,
+    });
+
+    new StringParameter(this, "GatewayIngressSecurityGroupIdParameter", {
+      parameterName: `/${props.resourcePrefix}/network/gateway-ingress-security-group-id`,
+      stringValue: this.gatewayIngressSecurityGroup.securityGroupId,
     });
 
     new StringParameter(this, "ClusterNameParameter", {
@@ -204,7 +224,9 @@ export class LabelLensComputeConstruct extends Construct {
       taskDefinition,
       desiredCount,
       assignPublicIp: false,
-      securityGroups: [this.serviceSecurityGroup],
+      maxHealthyPercent: props.compute.deploymentMaxHealthyPercent,
+      minHealthyPercent: props.compute.deploymentMinHealthyPercent,
+      securityGroups: this.securityGroupsForDeployable(deployable),
       vpcSubnets: {
         subnetType: SubnetType.PRIVATE_WITH_EGRESS,
       },
@@ -235,6 +257,10 @@ export class LabelLensComputeConstruct extends Construct {
 
   private defaultDesiredCount(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
     return deployable.kind === "service" ? compute.defaultServiceDesiredCount : compute.defaultWorkerDesiredCount;
+  }
+
+  private securityGroupsForDeployable(deployable: DeployableContainerConfig): SecurityGroup[] {
+    return deployable.name === "gateway" ? [this.gatewayIngressSecurityGroup] : [this.serviceSecurityGroup];
   }
 
   private environmentForDeployable(
