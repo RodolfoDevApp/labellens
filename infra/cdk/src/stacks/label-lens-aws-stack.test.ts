@@ -64,9 +64,8 @@ type EcsServiceProperties = {
   };
 };
 
-function synthesizeTemplate() {
+function synthesizeTemplate(config = createLabelLensAwsConfig("test")) {
   const app = new App();
-  const config = createLabelLensAwsConfig("test");
   const stack = new LabelLensAwsStack(app, "LabelLensTest", {
     config,
     env: {
@@ -524,6 +523,20 @@ describe("LabelLensAwsStack", () => {
   });
 
 
+  it("supports bootstrap deployment mode for first AWS deploy before ECR images exist", () => {
+    const template = synthesizeTemplate(createLabelLensAwsConfig("test", { deploymentMode: "bootstrap", imageTag: "bootstrap" }));
+
+    for (const serviceName of ["labellens-test-gateway", "labellens-test-auth-service", "labellens-test-food-service", "labellens-test-product-service", "labellens-test-menu-service", "labellens-test-favorites-service", "labellens-test-product-not-found-worker", "labellens-test-analytics-worker", "labellens-test-food-cache-refresh-worker", "labellens-test-product-cache-refresh-worker", "labellens-test-dlq-handler"]) {
+      const service = getServiceProperties(findServiceByName(template, serviceName));
+      expect(service.DesiredCount).toBe(0);
+    }
+
+    template.resourceCountIs("AWS::ApplicationAutoScaling::ScalableTarget", 0);
+    template.resourceCountIs("AWS::ApplicationAutoScaling::ScalingPolicy", 0);
+    expectStringParameter(template, "/labellens-test/deployment/mode", "bootstrap");
+    expectStringParameter(template, "/labellens-test/deployment/image-tag", "bootstrap");
+  });
+
   it("creates public ALB ingress for gateway only", () => {
     const template = synthesizeTemplate();
 
@@ -661,6 +674,8 @@ describe("LabelLensAwsStack", () => {
   it("exports operational SSM parameters for services and deployment automation", () => {
     const template = synthesizeTemplate();
 
+    expectStringParameter(template, "/labellens-test/deployment/mode", "release");
+    expectStringParameter(template, "/labellens-test/deployment/image-tag", "latest");
     expectStringParameter(template, "/labellens-test/runtime/storage-driver", "dynamodb");
     expectStringParameter(template, "/labellens-test/runtime/public-boundary", "gateway-only");
     expectStringParameter(template, "/labellens-test/scheduler/group-name", "labellens-test-schedules");
@@ -697,7 +712,7 @@ describe("LabelLensAwsStack", () => {
       "labellens-test-gateway-target-response-time-high",
     );
 
-    template.resourceCountIs("AWS::SSM::Parameter", 94);
+    template.resourceCountIs("AWS::SSM::Parameter", 96);
   });
 
   it("alarms on DLQ messages and queue age", () => {

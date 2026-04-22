@@ -216,7 +216,7 @@ export class LabelLensComputeConstruct extends Construct {
     taskDefinition: FargateTaskDefinition,
   ): FargateService {
     const constructId = toConstructId(deployable.name);
-    const desiredCount = deployable.desiredCount ?? this.defaultDesiredCount(props.compute, deployable);
+    const desiredCount = this.desiredCountForDeployable(props.compute, deployable);
     const serviceName = `${props.resourcePrefix}-${deployable.name}`;
 
     const service = new FargateService(this, `${constructId}Service`, {
@@ -264,17 +264,29 @@ export class LabelLensComputeConstruct extends Construct {
       stringValue: service.serviceArn,
     });
 
-    this.configureAutoscaling(deployable, service);
+    this.configureAutoscaling(props.compute, deployable, service);
 
     return service;
+  }
+
+  private desiredCountForDeployable(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
+    if (compute.deploymentMode === "bootstrap") {
+      return 0;
+    }
+
+    return deployable.desiredCount ?? this.defaultDesiredCount(compute, deployable);
   }
 
   private defaultDesiredCount(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
     return deployable.kind === "service" ? compute.defaultServiceDesiredCount : compute.defaultWorkerDesiredCount;
   }
 
-  private configureAutoscaling(deployable: DeployableContainerConfig, service: FargateService): void {
-    if (!deployable.autoScaling) {
+  private configureAutoscaling(
+    compute: ComputeConfig,
+    deployable: DeployableContainerConfig,
+    service: FargateService,
+  ): void {
+    if (compute.deploymentMode === "bootstrap" || !deployable.autoScaling) {
       return;
     }
 

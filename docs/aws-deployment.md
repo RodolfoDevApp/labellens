@@ -135,3 +135,23 @@ Phase 8F adds deployment safety and observability without requiring an AWS accou
 - Gateway alarm names are exported to SSM for later deployment automation.
 
 TLS, custom domain, WAF and Cognito/JWT enforcement remain future blocks.
+
+
+## Phase 8G AWS first-deploy readiness
+
+Phase 8G adds deployment mode `bootstrap` and `release`. `bootstrap` creates AWS infrastructure with ECS desired count 0, allowing ECR repositories to exist before images are pushed. `release` restores normal desired counts and gateway autoscaling.
+
+Local validation without AWS:
+
+```powershell
+npm run aws:deploy:check
+```
+
+First deploy after account creation:
+
+```powershell
+npm run aws:first-deploy -- -Environment dev -Region us-east-1 -ImageTag latest
+npm run aws:smoke -- -Environment dev -Region us-east-1
+```
+
+Supported CDK overrides: `environmentName`, `deploymentMode`, `imageTag`, `gatewayAllowedOrigins` and `ingressAllowedCidrs`.

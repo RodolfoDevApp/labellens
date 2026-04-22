@@ -81,6 +81,8 @@ export class LabelLensAwsStack extends Stack {
     new LabelLensOperationalParametersConstruct(this, "OperationalParameters", {
       resourcePrefix: props.config.resourcePrefix,
       environmentName: props.config.environmentName,
+      deploymentMode: props.config.deployment.mode,
+      imageTag: props.config.deployment.imageTag,
     });
 
     new CfnOutput(this, "LabelLensTableName", {

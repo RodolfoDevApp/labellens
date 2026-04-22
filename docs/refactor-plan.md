@@ -120,3 +120,8 @@ Phase 8F hardens the deploy-time behavior and observability before any real AWS 
 - Gateway alarm names are exported to SSM for deployment automation.
 
 The next AWS block should add the production public boundary controls: HTTPS/custom domain, certificate management, WAF and Cognito/JWT authorization.
+
+
+## Phase 8G status
+
+Phase 8G prepares the real AWS deployment runbook. CDK supports `bootstrap` mode for the first deploy before ECR images exist, then `release` mode after image push. Scripts live under `infra/aws`, and `npm run aws:deploy:check` validates the foundation without an AWS account.

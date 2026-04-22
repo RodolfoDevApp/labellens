@@ -49,3 +49,8 @@ This requires AWS CLI credentials and existing ECR repositories from CDK:
 ```powershell
 npm run containers:push -- -AccountId 123456789012 -Region us-east-1 -Environment dev -RemoteTag latest
 ```
+
+
+## First AWS deploy interaction
+
+Phase 8G wraps these container scripts in `npm run aws:first-deploy`: first CDK deploys infrastructure in `bootstrap` mode, then images are built/tagged/pushed, then CDK deploys `release` mode with the selected image tag.

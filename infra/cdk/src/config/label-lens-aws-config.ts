@@ -1,8 +1,11 @@
+export type DeploymentMode = "bootstrap" | "release";
+
 export type LabelLensAwsConfig = {
   environmentName: string;
   resourcePrefix: string;
   tableName: string;
   containerRepositoryNames: readonly string[];
+  deployment: DeploymentConfig;
   compute: ComputeConfig;
   ingress: IngressConfig;
   queues: {
@@ -16,6 +19,18 @@ export type LabelLensAwsConfig = {
     foodCacheRefresh: ScheduleConfig;
     productCacheRefresh: ScheduleConfig;
   };
+};
+
+export type LabelLensAwsConfigOptions = {
+  deploymentMode?: DeploymentMode;
+  gatewayAllowedOrigins?: readonly string[];
+  imageTag?: string;
+  ingressAllowedCidrBlocks?: readonly string[];
+};
+
+export type DeploymentConfig = {
+  mode: DeploymentMode;
+  imageTag: string;
 };
 
 export type IngressConfig = {
@@ -41,6 +56,7 @@ export type ComputeConfig = {
   gatewayIngressSecurityGroupName: string;
   privateDnsNamespaceName: string;
   imageTag: string;
+  deploymentMode: DeploymentMode;
   maxAzs: number;
   natGateways: number;
   gatewayAllowedOrigins: readonly string[];
@@ -99,25 +115,37 @@ export const serviceContainerRepositoryNames = [
   "dlq-handler",
 ] as const;
 
-export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsConfig {
+export function createLabelLensAwsConfig(
+  environmentName: string,
+  options: LabelLensAwsConfigOptions = {},
+): LabelLensAwsConfig {
   const normalizedEnvironmentName = normalizeEnvironmentName(environmentName);
   const resourcePrefix = `labellens-${normalizedEnvironmentName}`;
+  const deploymentMode = options.deploymentMode ?? "release";
+  const imageTag = normalizeImageTag(options.imageTag ?? "latest");
+  const gatewayAllowedOrigins = normalizeStringList(options.gatewayAllowedOrigins, ["http://localhost:3000"]);
+  const ingressAllowedCidrBlocks = normalizeStringList(options.ingressAllowedCidrBlocks, ["0.0.0.0/0"]);
 
   return {
     environmentName: normalizedEnvironmentName,
     resourcePrefix,
     tableName: `${resourcePrefix}-table`,
     containerRepositoryNames: serviceContainerRepositoryNames.map((name) => `${resourcePrefix}/${name}`),
+    deployment: {
+      mode: deploymentMode,
+      imageTag,
+    },
     compute: {
       vpcName: `${resourcePrefix}-vpc`,
       clusterName: `${resourcePrefix}-cluster`,
       serviceSecurityGroupName: `${resourcePrefix}-service-sg`,
       gatewayIngressSecurityGroupName: `${resourcePrefix}-gateway-ingress-sg`,
       privateDnsNamespaceName: `${resourcePrefix}.local`,
-      imageTag: "latest",
+      imageTag,
+      deploymentMode,
       maxAzs: 2,
       natGateways: 1,
-      gatewayAllowedOrigins: ["http://localhost:3000"],
+      gatewayAllowedOrigins,
       serviceDiscoveryTtlSeconds: 30,
       defaultServiceDesiredCount: 1,
       defaultWorkerDesiredCount: 1,
@@ -165,7 +193,7 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       healthCheckTimeoutSeconds: 5,
       healthyThresholdCount: 2,
       unhealthyThresholdCount: 3,
-      allowedCidrBlocks: ["0.0.0.0/0"],
+      allowedCidrBlocks: ingressAllowedCidrBlocks,
       gatewayUnhealthyHostAlarmEvaluationPeriods: 2,
       gatewayTarget5xxAlarmThreshold: 5,
       gatewayTargetResponseTimeAlarmThresholdSeconds: 2,
@@ -216,4 +244,34 @@ export function normalizeEnvironmentName(environmentName: string): string {
   }
 
   return normalized.replace(/^-+|-+$/g, "").slice(0, 24) || "dev";
+}
+
+export function normalizeDeploymentMode(mode: string): DeploymentMode {
+  const normalized = mode.trim().toLowerCase();
+
+  if (normalized === "bootstrap" || normalized === "release") {
+    return normalized;
+  }
+
+  throw new Error("Deployment mode must be either 'bootstrap' or 'release'.");
+}
+
+export function normalizeImageTag(tag: string): string {
+  const normalized = tag.trim();
+
+  if (!normalized) {
+    return "latest";
+  }
+
+  if (!/^[a-zA-Z0-9_.-]{1,128}$/.test(normalized)) {
+    throw new Error("Container image tag must be 1-128 characters and contain only letters, numbers, underscore, dot or dash.");
+  }
+
+  return normalized;
+}
+
+function normalizeStringList(value: readonly string[] | undefined, fallback: readonly string[]): readonly string[] {
+  const candidates = value?.map((entry) => entry.trim()).filter(Boolean) ?? [];
+
+  return candidates.length > 0 ? candidates : fallback;
 }
