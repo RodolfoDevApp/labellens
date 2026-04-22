@@ -26,6 +26,9 @@ export type ComputeConfig = {
   maxAzs: number;
   natGateways: number;
   gatewayAllowedOrigins: readonly string[];
+  serviceDiscoveryTtlSeconds: number;
+  defaultServiceDesiredCount: number;
+  defaultWorkerDesiredCount: number;
   defaultTask: {
     cpu: number;
     memoryLimitMiB: number;
@@ -39,6 +42,7 @@ export type DeployableContainerConfig = {
   port?: number;
   cpu?: number;
   memoryLimitMiB?: number;
+  desiredCount?: number;
 };
 
 export type QueueConfig = {
@@ -85,6 +89,9 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       maxAzs: 2,
       natGateways: 1,
       gatewayAllowedOrigins: ["http://localhost:3000"],
+      serviceDiscoveryTtlSeconds: 30,
+      defaultServiceDesiredCount: 1,
+      defaultWorkerDesiredCount: 1,
       defaultTask: {
         cpu: 256,
         memoryLimitMiB: 512,

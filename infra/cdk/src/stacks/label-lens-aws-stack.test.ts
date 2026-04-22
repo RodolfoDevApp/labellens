@@ -34,6 +34,20 @@ type EcsTaskDefinitionProperties = {
   ContainerDefinitions?: EcsContainerDefinition[];
 };
 
+type EcsServiceProperties = {
+  ServiceName?: string;
+  DesiredCount?: number;
+  LaunchType?: string;
+  NetworkConfiguration?: {
+    AwsvpcConfiguration?: {
+      AssignPublicIp?: string;
+      SecurityGroups?: unknown[];
+      Subnets?: unknown[];
+    };
+  };
+  ServiceRegistries?: unknown[];
+};
+
 function synthesizeTemplate() {
   const app = new App();
   const config = createLabelLensAwsConfig("test");
@@ -72,6 +86,21 @@ function findTaskDefinitionByFamily(template: Template, family: string): CloudFo
   expect(resource).toBeDefined();
 
   return resource as CloudFormationResource;
+}
+
+function findServiceByName(template: Template, serviceName: string): CloudFormationResource {
+  const resources = template.findResources("AWS::ECS::Service") as Record<string, CloudFormationResource>;
+  const resource = Object.values(resources).find((candidate) => candidate.Properties?.ServiceName === serviceName);
+
+  expect(resource).toBeDefined();
+
+  return resource as CloudFormationResource;
+}
+
+function getServiceProperties(resource: CloudFormationResource): EcsServiceProperties {
+  expect(resource.Properties).toBeDefined();
+
+  return resource.Properties as EcsServiceProperties;
 }
 
 function getTaskDefinitionProperties(resource: CloudFormationResource): EcsTaskDefinitionProperties {
@@ -347,6 +376,8 @@ describe("LabelLensAwsStack", () => {
     });
 
     template.resourceCountIs("AWS::ECS::TaskDefinition", 11);
+    template.resourceCountIs("AWS::ECS::Service", 11);
+    template.resourceCountIs("AWS::ServiceDiscovery::Service", 6);
     template.resourceCountIs("AWS::Logs::LogGroup", 11);
 
     template.hasResourceProperties("AWS::Logs::LogGroup", {
@@ -388,6 +419,44 @@ describe("LabelLensAwsStack", () => {
     expectEnvVar(dlqHandlerContainer, "ANALYTICS_DLQ_URL");
     expectEnvVar(dlqHandlerContainer, "FOOD_CACHE_REFRESH_DLQ_URL");
     expectEnvVar(dlqHandlerContainer, "PRODUCT_CACHE_REFRESH_DLQ_URL");
+
+    const gatewayService = getServiceProperties(findServiceByName(template, "labellens-test-gateway"));
+    expect(gatewayService.DesiredCount).toBe(1);
+    expect(gatewayService.LaunchType).toBe("FARGATE");
+    expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.AssignPublicIp).toBe("DISABLED");
+    expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.SecurityGroups ?? []).toHaveLength(1);
+    expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.Subnets ?? []).toHaveLength(2);
+    expect(gatewayService.ServiceRegistries).toBeDefined();
+
+    const analyticsWorkerService = getServiceProperties(findServiceByName(template, "labellens-test-analytics-worker"));
+    expect(analyticsWorkerService.DesiredCount).toBe(1);
+    expect(analyticsWorkerService.LaunchType).toBe("FARGATE");
+    expect(analyticsWorkerService.NetworkConfiguration?.AwsvpcConfiguration?.AssignPublicIp).toBe("DISABLED");
+    expect(analyticsWorkerService.ServiceRegistries).toBeUndefined();
+
+    template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
+      Name: "gateway",
+      DnsConfig: Match.objectLike({
+        DnsRecords: Match.arrayWith([
+          Match.objectLike({
+            TTL: 30,
+            Type: "A",
+          }),
+        ]),
+      }),
+    });
+
+    template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
+      Name: "product-service",
+      DnsConfig: Match.objectLike({
+        DnsRecords: Match.arrayWith([
+          Match.objectLike({
+            TTL: 30,
+            Type: "A",
+          }),
+        ]),
+      }),
+    });
   });
 
   it("creates one ECR repository per deployable service and worker", () => {
@@ -429,8 +498,12 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/network/service-security-group-id");
     expectStringParameter(template, "/labellens-test/service-discovery/private-dns-namespace-name", "labellens-test.local");
     expectStringParameter(template, "/labellens-test/ecs/task-definitions/gateway/arn");
+    expectStringParameter(template, "/labellens-test/ecs/services/gateway/name", "labellens-test-gateway");
+    expectStringParameter(template, "/labellens-test/ecs/services/gateway/arn");
+    expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/name", "labellens-test-analytics-worker");
+    expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/arn");
 
-    template.resourceCountIs("AWS::SSM::Parameter", 62);
+    template.resourceCountIs("AWS::SSM::Parameter", 84);
   });
 
   it("alarms on DLQ messages and queue age", () => {

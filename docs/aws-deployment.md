@@ -25,10 +25,14 @@ The CDK stack creates:
 - Shared ECS service security group for private service-to-service HTTP.
 - Private DNS namespace for future ECS service discovery.
 - Fargate task definitions for all 11 deployable containers.
+- ECS Fargate services for all 11 deployable services and workers.
+- Cloud Map service discovery for the six HTTP services using A records in the private namespace.
+- Private subnet placement with no public IP assignment for every ECS service.
+- Shared service security group allowing only LabelLens private service-to-service HTTP range.
 - CloudWatch log groups for every service and worker.
 - Runtime environment wiring for DynamoDB, SQS queues and private service URLs.
 - Task role grants for DynamoDB read/write plus only the SQS send/consume permissions each service or worker needs.
-- SSM parameters for resource names, ARNs, schedules, VPC, ECS cluster, namespace and task definition ARNs.
+- SSM parameters for resource names, ARNs, schedules, VPC, ECS cluster, namespace, task definition ARNs and ECS service names/ARNs.
 
 ## Phase 8B container foundation
 
@@ -84,10 +88,15 @@ npm run cdk -- deploy
 
 Do not run deploy commands until the account, region, billing alerts and bootstrap target are confirmed.
 
+## Phase 8D ECS services and service discovery
+
+Phase 8D turns the task definitions into deployable ECS Fargate services while still avoiding real AWS deployment. The CDK template now synthesizes private ECS services for the gateway, five private HTTP services and five async workers. HTTP services are registered in the private Cloud Map namespace using A records so internal URLs remain stable, for example `http://product-service.labellens-dev.local:4102`.
+
+Workers are also ECS Fargate services, but they are not registered in Cloud Map because no other container calls them over HTTP. They run in private subnets without public IPs and receive only their required SQS/DynamoDB permissions.
+
 ## Next AWS work
 
-1. Turn Fargate task definitions into ECS services.
-2. Add private service discovery/service wiring for deployed ECS services.
-3. Add public ingress for the gateway through API Gateway/ALB/VPC Link or the selected final boundary.
-4. Add Cognito/JWT authorization at the public boundary.
-5. Deploy, tag and push images to ECR once the AWS account is ready.
+1. Add public ingress for the gateway through API Gateway/ALB/VPC Link or the selected final boundary.
+2. Add Cognito/JWT authorization at the public boundary.
+3. Add deployment-time image tag strategy and environment overrides.
+4. Deploy, tag and push images to ECR once the AWS account is ready.

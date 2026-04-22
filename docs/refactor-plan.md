@@ -86,4 +86,14 @@ Phase 8C adds AWS compute foundation in CDK without requiring AWS deployment yet
 - Runtime environment variables are wired from CDK resources.
 - Task roles receive DynamoDB and per-queue SQS permissions.
 
-The next AWS block should turn these task definitions into ECS services and add the public/private ingress path.
+## Phase 8D status
+
+Phase 8D turns the synthesized task definitions into ECS Fargate services without requiring an AWS account yet:
+
+- All 11 deployables synthesize as ECS services.
+- Gateway and private HTTP services register in the private Cloud Map namespace.
+- Async workers synthesize as private ECS services without Cloud Map registration.
+- All services run in private-with-egress subnets with public IP assignment disabled.
+- ECS service names and ARNs are exported to SSM for deployment automation.
+
+The next AWS block should add the public gateway ingress path and auth boundary.

@@ -1,4 +1,4 @@
-import { CfnOutput, RemovalPolicy, Stack } from "aws-cdk-lib";
+import { CfnOutput, Duration, RemovalPolicy, Stack } from "aws-cdk-lib";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 import { Peer, Port, SecurityGroup, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { Repository } from "aws-cdk-lib/aws-ecr";
@@ -6,12 +6,13 @@ import {
   Cluster,
   ContainerImage,
   ContainerInsights,
+  FargateService,
   FargateTaskDefinition,
   LogDrivers,
   Protocol,
 } from "aws-cdk-lib/aws-ecs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
-import { PrivateDnsNamespace } from "aws-cdk-lib/aws-servicediscovery";
+import { DnsRecordType, PrivateDnsNamespace } from "aws-cdk-lib/aws-servicediscovery";
 import { Queue } from "aws-cdk-lib/aws-sqs";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
@@ -41,6 +42,7 @@ export class LabelLensComputeConstruct extends Construct {
   readonly cluster: Cluster;
   readonly privateDnsNamespace: PrivateDnsNamespace;
   readonly taskDefinitions: Record<string, FargateTaskDefinition> = {};
+  readonly services: Record<string, FargateService> = {};
 
   constructor(scope: Construct, id: string, props: LabelLensComputeConstructProps) {
     super(scope, id);
@@ -91,6 +93,16 @@ export class LabelLensComputeConstruct extends Construct {
 
     for (const deployable of props.compute.deployables) {
       this.taskDefinitions[deployable.name] = this.createTaskDefinition(props, deployable);
+    }
+
+    for (const deployable of props.compute.deployables) {
+      const taskDefinition = this.taskDefinitions[deployable.name];
+
+      if (!taskDefinition) {
+        throw new Error(`Missing task definition for ${deployable.name}.`);
+      }
+
+      this.services[deployable.name] = this.createFargateService(props, deployable, taskDefinition);
     }
 
     new StringParameter(this, "VpcIdParameter", {
@@ -175,6 +187,54 @@ export class LabelLensComputeConstruct extends Construct {
     });
 
     return taskDefinition;
+  }
+
+  private createFargateService(
+    props: LabelLensComputeConstructProps,
+    deployable: DeployableContainerConfig,
+    taskDefinition: FargateTaskDefinition,
+  ): FargateService {
+    const constructId = toConstructId(deployable.name);
+    const desiredCount = deployable.desiredCount ?? this.defaultDesiredCount(props.compute, deployable);
+    const serviceName = `${props.resourcePrefix}-${deployable.name}`;
+
+    const service = new FargateService(this, `${constructId}Service`, {
+      cluster: this.cluster,
+      serviceName,
+      taskDefinition,
+      desiredCount,
+      assignPublicIp: false,
+      securityGroups: [this.serviceSecurityGroup],
+      vpcSubnets: {
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS,
+      },
+      ...(deployable.kind === "service"
+        ? {
+            cloudMapOptions: {
+              cloudMapNamespace: this.privateDnsNamespace,
+              dnsRecordType: DnsRecordType.A,
+              dnsTtl: Duration.seconds(props.compute.serviceDiscoveryTtlSeconds),
+              name: deployable.name,
+            },
+          }
+        : {}),
+    });
+
+    new StringParameter(this, `${constructId}ServiceNameParameter`, {
+      parameterName: `/${props.resourcePrefix}/ecs/services/${deployable.name}/name`,
+      stringValue: serviceName,
+    });
+
+    new StringParameter(this, `${constructId}ServiceArnParameter`, {
+      parameterName: `/${props.resourcePrefix}/ecs/services/${deployable.name}/arn`,
+      stringValue: service.serviceArn,
+    });
+
+    return service;
+  }
+
+  private defaultDesiredCount(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
+    return deployable.kind === "service" ? compute.defaultServiceDesiredCount : compute.defaultWorkerDesiredCount;
   }
 
   private environmentForDeployable(
