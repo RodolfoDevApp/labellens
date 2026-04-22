@@ -1,4 +1,5 @@
 import { CfnOutput, Duration } from "aws-cdk-lib";
+import { Alarm, ComparisonOperator, Metric, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
 import { Peer, Port, SecurityGroup, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { FargateService } from "aws-cdk-lib/aws-ecs";
 import {
@@ -24,6 +25,9 @@ export class LabelLensIngressConstruct extends Construct {
   readonly loadBalancer: ApplicationLoadBalancer;
   readonly httpListener: ApplicationListener;
   readonly gatewayTargetGroup: ApplicationTargetGroup;
+  readonly gatewayUnhealthyHostsAlarm: Alarm;
+  readonly gatewayTarget5xxAlarm: Alarm;
+  readonly gatewayTargetResponseTimeAlarm: Alarm;
 
   constructor(scope: Construct, id: string, props: LabelLensIngressConstructProps) {
     super(scope, id);
@@ -84,6 +88,39 @@ export class LabelLensIngressConstruct extends Construct {
       },
     });
 
+    const gatewayUnhealthyHostsAlarmName = `${props.resourcePrefix}-gateway-target-unhealthy-hosts`;
+    const gatewayTarget5xxAlarmName = `${props.resourcePrefix}-gateway-target-5xx`;
+    const gatewayTargetResponseTimeAlarmName = `${props.resourcePrefix}-gateway-target-response-time-high`;
+
+    this.gatewayUnhealthyHostsAlarm = new Alarm(this, "GatewayUnhealthyHostsAlarm", {
+      alarmName: gatewayUnhealthyHostsAlarmName,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      datapointsToAlarm: props.ingress.gatewayUnhealthyHostAlarmEvaluationPeriods,
+      evaluationPeriods: props.ingress.gatewayUnhealthyHostAlarmEvaluationPeriods,
+      metric: this.gatewayTargetGroupMetric("UnHealthyHostCount", "Minimum"),
+      threshold: 1,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
+    this.gatewayTarget5xxAlarm = new Alarm(this, "GatewayTarget5xxAlarm", {
+      alarmName: gatewayTarget5xxAlarmName,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      evaluationPeriods: 1,
+      metric: this.gatewayTargetGroupMetric("HTTPCode_Target_5XX_Count", "Sum"),
+      threshold: props.ingress.gatewayTarget5xxAlarmThreshold,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
+    this.gatewayTargetResponseTimeAlarm = new Alarm(this, "GatewayTargetResponseTimeAlarm", {
+      alarmName: gatewayTargetResponseTimeAlarmName,
+      comparisonOperator: ComparisonOperator.GREATER_THAN_OR_EQUAL_TO_THRESHOLD,
+      datapointsToAlarm: 2,
+      evaluationPeriods: 3,
+      metric: this.gatewayTargetGroupMetric("TargetResponseTime", "Average"),
+      threshold: props.ingress.gatewayTargetResponseTimeAlarmThresholdSeconds,
+      treatMissingData: TreatMissingData.NOT_BREACHING,
+    });
+
     new StringParameter(this, "GatewayAlbDnsNameParameter", {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/dns-name`,
       stringValue: this.loadBalancer.loadBalancerDnsName,
@@ -114,12 +151,40 @@ export class LabelLensIngressConstruct extends Construct {
       stringValue: `http://${this.loadBalancer.loadBalancerDnsName}`,
     });
 
+    new StringParameter(this, "GatewayUnhealthyHostsAlarmNameParameter", {
+      parameterName: `/${props.resourcePrefix}/alarms/gateway-target-unhealthy-hosts/name`,
+      stringValue: gatewayUnhealthyHostsAlarmName,
+    });
+
+    new StringParameter(this, "GatewayTarget5xxAlarmNameParameter", {
+      parameterName: `/${props.resourcePrefix}/alarms/gateway-target-5xx/name`,
+      stringValue: gatewayTarget5xxAlarmName,
+    });
+
+    new StringParameter(this, "GatewayTargetResponseTimeAlarmNameParameter", {
+      parameterName: `/${props.resourcePrefix}/alarms/gateway-target-response-time-high/name`,
+      stringValue: gatewayTargetResponseTimeAlarmName,
+    });
+
     new CfnOutput(this, "GatewayLoadBalancerDnsName", {
       value: this.loadBalancer.loadBalancerDnsName,
     });
 
     new CfnOutput(this, "GatewayPublicUrl", {
       value: `http://${this.loadBalancer.loadBalancerDnsName}`,
+    });
+  }
+
+  private gatewayTargetGroupMetric(metricName: string, statistic: string): Metric {
+    return new Metric({
+      dimensionsMap: {
+        LoadBalancer: this.loadBalancer.loadBalancerFullName,
+        TargetGroup: this.gatewayTargetGroup.targetGroupFullName,
+      },
+      metricName,
+      namespace: "AWS/ApplicationELB",
+      period: Duration.minutes(1),
+      statistic,
     });
   }
 }

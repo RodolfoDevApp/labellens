@@ -120,4 +120,18 @@ The public boundary remains intentionally narrow:
 internet -> public ALB :80 -> gateway ECS service :4000 -> private services via Cloud Map
 ```
 
-No private service, worker, SQS queue or DynamoDB table is exposed by this phase. TLS, custom domain, WAF and Cognito/JWT enforcement remain future blocks.
+No private service, worker, SQS queue or DynamoDB table is exposed by this phase.
+
+## Phase 8F deploy hardening
+
+Phase 8F adds deployment safety and observability without requiring an AWS account yet:
+
+- ECS deployment circuit breaker with rollback is enabled for every Fargate service.
+- ECS managed tags are enabled and service tags are propagated to tasks.
+- Rolling deployment bounds are explicit: minimum healthy `100%`, maximum healthy `200%`.
+- Gateway ECS service gets a `60s` health-check grace period for ALB target registration.
+- Gateway ECS service has CPU target-tracking autoscaling from `1` to `3` tasks at `60%` CPU.
+- Gateway target group has CloudWatch alarms for unhealthy hosts, target 5xx responses and slow target response time.
+- Gateway alarm names are exported to SSM for later deployment automation.
+
+TLS, custom domain, WAF and Cognito/JWT enforcement remain future blocks.

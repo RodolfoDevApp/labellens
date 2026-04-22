@@ -9,6 +9,7 @@ import {
   FargateService,
   FargateTaskDefinition,
   LogDrivers,
+  PropagatedTagSource,
   Protocol,
 } from "aws-cdk-lib/aws-ecs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
@@ -224,8 +225,19 @@ export class LabelLensComputeConstruct extends Construct {
       taskDefinition,
       desiredCount,
       assignPublicIp: false,
+      circuitBreaker: {
+        enable: true,
+        rollback: true,
+      },
+      enableECSManagedTags: true,
+      ...(deployable.name === "gateway"
+        ? {
+            healthCheckGracePeriod: Duration.seconds(props.compute.gatewayHealthCheckGracePeriodSeconds),
+          }
+        : {}),
       maxHealthyPercent: props.compute.deploymentMaxHealthyPercent,
       minHealthyPercent: props.compute.deploymentMinHealthyPercent,
+      propagateTags: PropagatedTagSource.SERVICE,
       securityGroups: this.securityGroupsForDeployable(deployable),
       vpcSubnets: {
         subnetType: SubnetType.PRIVATE_WITH_EGRESS,
@@ -252,11 +264,30 @@ export class LabelLensComputeConstruct extends Construct {
       stringValue: service.serviceArn,
     });
 
+    this.configureAutoscaling(deployable, service);
+
     return service;
   }
 
   private defaultDesiredCount(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
     return deployable.kind === "service" ? compute.defaultServiceDesiredCount : compute.defaultWorkerDesiredCount;
+  }
+
+  private configureAutoscaling(deployable: DeployableContainerConfig, service: FargateService): void {
+    if (!deployable.autoScaling) {
+      return;
+    }
+
+    const scalableTaskCount = service.autoScaleTaskCount({
+      maxCapacity: deployable.autoScaling.maxCapacity,
+      minCapacity: deployable.autoScaling.minCapacity,
+    });
+
+    scalableTaskCount.scaleOnCpuUtilization(`${toConstructId(deployable.name)}CpuScaling`, {
+      scaleInCooldown: Duration.seconds(deployable.autoScaling.scaleInCooldownSeconds),
+      scaleOutCooldown: Duration.seconds(deployable.autoScaling.scaleOutCooldownSeconds),
+      targetUtilizationPercent: deployable.autoScaling.cpuTargetUtilizationPercent,
+    });
   }
 
   private securityGroupsForDeployable(deployable: DeployableContainerConfig): SecurityGroup[] {

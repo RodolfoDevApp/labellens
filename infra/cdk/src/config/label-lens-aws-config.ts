@@ -29,6 +29,9 @@ export type IngressConfig = {
   healthyThresholdCount: number;
   unhealthyThresholdCount: number;
   allowedCidrBlocks: readonly string[];
+  gatewayUnhealthyHostAlarmEvaluationPeriods: number;
+  gatewayTarget5xxAlarmThreshold: number;
+  gatewayTargetResponseTimeAlarmThresholdSeconds: number;
 };
 
 export type ComputeConfig = {
@@ -46,6 +49,7 @@ export type ComputeConfig = {
   defaultWorkerDesiredCount: number;
   deploymentMinHealthyPercent: number;
   deploymentMaxHealthyPercent: number;
+  gatewayHealthCheckGracePeriodSeconds: number;
   defaultTask: {
     cpu: number;
     memoryLimitMiB: number;
@@ -60,6 +64,13 @@ export type DeployableContainerConfig = {
   cpu?: number;
   memoryLimitMiB?: number;
   desiredCount?: number;
+  autoScaling?: {
+    minCapacity: number;
+    maxCapacity: number;
+    cpuTargetUtilizationPercent: number;
+    scaleInCooldownSeconds: number;
+    scaleOutCooldownSeconds: number;
+  };
 };
 
 export type QueueConfig = {
@@ -112,12 +123,26 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       defaultWorkerDesiredCount: 1,
       deploymentMinHealthyPercent: 100,
       deploymentMaxHealthyPercent: 200,
+      gatewayHealthCheckGracePeriodSeconds: 60,
       defaultTask: {
         cpu: 256,
         memoryLimitMiB: 512,
       },
       deployables: [
-        { name: "gateway", kind: "service", port: 4000, cpu: 512, memoryLimitMiB: 1024 },
+        {
+          name: "gateway",
+          kind: "service",
+          port: 4000,
+          cpu: 512,
+          memoryLimitMiB: 1024,
+          autoScaling: {
+            minCapacity: 1,
+            maxCapacity: 3,
+            cpuTargetUtilizationPercent: 60,
+            scaleInCooldownSeconds: 120,
+            scaleOutCooldownSeconds: 60,
+          },
+        },
         { name: "auth-service", kind: "service", port: 4105 },
         { name: "food-service", kind: "service", port: 4101 },
         { name: "product-service", kind: "service", port: 4102 },
@@ -141,6 +166,9 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
       healthyThresholdCount: 2,
       unhealthyThresholdCount: 3,
       allowedCidrBlocks: ["0.0.0.0/0"],
+      gatewayUnhealthyHostAlarmEvaluationPeriods: 2,
+      gatewayTarget5xxAlarmThreshold: 5,
+      gatewayTargetResponseTimeAlarmThresholdSeconds: 2,
     },
     queues: {
       productNotFound: {

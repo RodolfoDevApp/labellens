@@ -37,6 +37,8 @@ type EcsTaskDefinitionProperties = {
 type EcsServiceProperties = {
   ServiceName?: string;
   DesiredCount?: number;
+  EnableECSManagedTags?: boolean;
+  HealthCheckGracePeriodSeconds?: number;
   LaunchType?: string;
   NetworkConfiguration?: {
     AwsvpcConfiguration?: {
@@ -51,7 +53,12 @@ type EcsServiceProperties = {
     ContainerPort?: number;
     TargetGroupArn?: unknown;
   }>;
+  PropagateTags?: string;
   DeploymentConfiguration?: {
+    DeploymentCircuitBreaker?: {
+      Enable?: boolean;
+      Rollback?: boolean;
+    };
     MaximumPercent?: number;
     MinimumHealthyPercent?: number;
   };
@@ -447,16 +454,29 @@ describe("LabelLensAwsStack", () => {
     expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.SecurityGroups ?? []).toHaveLength(1);
     expect(gatewayService.NetworkConfiguration?.AwsvpcConfiguration?.Subnets ?? []).toHaveLength(2);
     expect(gatewayService.ServiceRegistries).toBeDefined();
+    expect(gatewayService.DeploymentConfiguration?.DeploymentCircuitBreaker).toEqual({
+      Enable: true,
+      Rollback: true,
+    });
     expect(gatewayService.DeploymentConfiguration?.MaximumPercent).toBe(200);
     expect(gatewayService.DeploymentConfiguration?.MinimumHealthyPercent).toBe(100);
+    expect(gatewayService.EnableECSManagedTags).toBe(true);
+    expect(gatewayService.HealthCheckGracePeriodSeconds).toBe(60);
+    expect(gatewayService.PropagateTags).toBe("SERVICE");
 
     const analyticsWorkerService = getServiceProperties(findServiceByName(template, "labellens-test-analytics-worker"));
     expect(analyticsWorkerService.DesiredCount).toBe(1);
     expect(analyticsWorkerService.LaunchType).toBe("FARGATE");
     expect(analyticsWorkerService.NetworkConfiguration?.AwsvpcConfiguration?.AssignPublicIp).toBe("DISABLED");
     expect(analyticsWorkerService.ServiceRegistries).toBeUndefined();
+    expect(analyticsWorkerService.DeploymentConfiguration?.DeploymentCircuitBreaker).toEqual({
+      Enable: true,
+      Rollback: true,
+    });
     expect(analyticsWorkerService.DeploymentConfiguration?.MaximumPercent).toBe(200);
     expect(analyticsWorkerService.DeploymentConfiguration?.MinimumHealthyPercent).toBe(100);
+    expect(analyticsWorkerService.EnableECSManagedTags).toBe(true);
+    expect(analyticsWorkerService.PropagateTags).toBe("SERVICE");
 
     template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
       Name: "gateway",
@@ -468,6 +488,26 @@ describe("LabelLensAwsStack", () => {
           }),
         ]),
       }),
+    });
+
+    template.resourceCountIs("AWS::ApplicationAutoScaling::ScalableTarget", 1);
+    template.resourceCountIs("AWS::ApplicationAutoScaling::ScalingPolicy", 1);
+
+    template.hasResourceProperties("AWS::ApplicationAutoScaling::ScalableTarget", {
+      MaxCapacity: 3,
+      MinCapacity: 1,
+      ScalableDimension: "ecs:service:DesiredCount",
+      ServiceNamespace: "ecs",
+    });
+
+    template.hasResourceProperties("AWS::ApplicationAutoScaling::ScalingPolicy", {
+      PolicyType: "TargetTrackingScaling",
+      TargetTrackingScalingPolicyConfiguration: {
+        PredefinedMetricSpecification: {
+          PredefinedMetricType: "ECSServiceAverageCPUUtilization",
+        },
+        TargetValue: 60,
+      },
     });
 
     template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
@@ -531,6 +571,41 @@ describe("LabelLensAwsStack", () => {
       Protocol: "HTTP",
       TargetType: "ip",
       UnhealthyThresholdCount: 3,
+    });
+
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      AlarmName: "labellens-test-gateway-target-unhealthy-hosts",
+      ComparisonOperator: "GreaterThanOrEqualToThreshold",
+      DatapointsToAlarm: 2,
+      EvaluationPeriods: 2,
+      MetricName: "UnHealthyHostCount",
+      Namespace: "AWS/ApplicationELB",
+      Statistic: "Minimum",
+      Threshold: 1,
+      TreatMissingData: "notBreaching",
+    });
+
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      AlarmName: "labellens-test-gateway-target-5xx",
+      ComparisonOperator: "GreaterThanOrEqualToThreshold",
+      EvaluationPeriods: 1,
+      MetricName: "HTTPCode_Target_5XX_Count",
+      Namespace: "AWS/ApplicationELB",
+      Statistic: "Sum",
+      Threshold: 5,
+      TreatMissingData: "notBreaching",
+    });
+
+    template.hasResourceProperties("AWS::CloudWatch::Alarm", {
+      AlarmName: "labellens-test-gateway-target-response-time-high",
+      ComparisonOperator: "GreaterThanOrEqualToThreshold",
+      DatapointsToAlarm: 2,
+      EvaluationPeriods: 3,
+      MetricName: "TargetResponseTime",
+      Namespace: "AWS/ApplicationELB",
+      Statistic: "Average",
+      Threshold: 2,
+      TreatMissingData: "notBreaching",
     });
 
     const gatewayService = getServiceProperties(findServiceByName(template, "labellens-test-gateway"));
@@ -606,14 +681,29 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/ingress/gateway-alb/http-listener-arn");
     expectStringParameter(template, "/labellens-test/ingress/gateway-alb/target-group-arn");
     expectStringParameter(template, "/labellens-test/ingress/gateway-url");
+    expectStringParameter(
+      template,
+      "/labellens-test/alarms/gateway-target-unhealthy-hosts/name",
+      "labellens-test-gateway-target-unhealthy-hosts",
+    );
+    expectStringParameter(
+      template,
+      "/labellens-test/alarms/gateway-target-5xx/name",
+      "labellens-test-gateway-target-5xx",
+    );
+    expectStringParameter(
+      template,
+      "/labellens-test/alarms/gateway-target-response-time-high/name",
+      "labellens-test-gateway-target-response-time-high",
+    );
 
-    template.resourceCountIs("AWS::SSM::Parameter", 91);
+    template.resourceCountIs("AWS::SSM::Parameter", 94);
   });
 
   it("alarms on DLQ messages and queue age", () => {
     const template = synthesizeTemplate();
 
-    expect(Object.keys(template.findResources("AWS::CloudWatch::Alarm"))).toHaveLength(8);
+    expect(Object.keys(template.findResources("AWS::CloudWatch::Alarm"))).toHaveLength(11);
 
     template.hasResourceProperties("AWS::CloudWatch::Alarm", {
       AlarmName: "labellens-test-product-not-found-dlq-visible-messages",

@@ -109,4 +109,14 @@ Phase 8E adds the AWS public ingress foundation while keeping the gateway as the
 - Internal services and workers remain private and are not registered as load balancer targets.
 - ALB operational values are exported to SSM for later deployment automation.
 
+Phase 8F hardens the deploy-time behavior and observability before any real AWS deployment:
+
+- ECS services use deployment circuit breaker with rollback enabled.
+- ECS services use deterministic rolling deployment bounds: minimum healthy 100% and maximum healthy 200%.
+- ECS managed tags are enabled and propagated from ECS service resources.
+- Gateway ECS service uses an explicit ALB health-check grace period.
+- Gateway ECS service has CPU target-tracking autoscaling from 1 to 3 tasks.
+- Gateway target group alarms cover unhealthy targets, target 5xx responses and slow target response time.
+- Gateway alarm names are exported to SSM for deployment automation.
+
 The next AWS block should add the production public boundary controls: HTTPS/custom domain, certificate management, WAF and Cognito/JWT authorization.
