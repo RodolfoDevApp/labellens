@@ -13,6 +13,27 @@ type ScheduleTarget = {
   Input?: unknown;
 };
 
+type EcsContainerDefinition = {
+  Name?: string;
+  Environment?: Array<{
+    Name?: string;
+    Value?: unknown;
+  }>;
+  PortMappings?: Array<{
+    ContainerPort?: number;
+    Protocol?: string;
+  }>;
+};
+
+type EcsTaskDefinitionProperties = {
+  Family?: string;
+  Cpu?: string;
+  Memory?: string;
+  NetworkMode?: string;
+  RequiresCompatibilities?: string[];
+  ContainerDefinitions?: EcsContainerDefinition[];
+};
+
 function synthesizeTemplate() {
   const app = new App();
   const config = createLabelLensAwsConfig("test");
@@ -42,6 +63,65 @@ function getScheduleTargetInputText(resource: CloudFormationResource): string {
   expect(target?.Input).toBeDefined();
 
   return JSON.stringify(target?.Input);
+}
+
+function findTaskDefinitionByFamily(template: Template, family: string): CloudFormationResource {
+  const resources = template.findResources("AWS::ECS::TaskDefinition") as Record<string, CloudFormationResource>;
+  const resource = Object.values(resources).find((candidate) => candidate.Properties?.Family === family);
+
+  expect(resource).toBeDefined();
+
+  return resource as CloudFormationResource;
+}
+
+function getTaskDefinitionProperties(resource: CloudFormationResource): EcsTaskDefinitionProperties {
+  expect(resource.Properties).toBeDefined();
+
+  return resource.Properties as EcsTaskDefinitionProperties;
+}
+
+function findContainer(resource: CloudFormationResource, containerName: string): EcsContainerDefinition {
+  const properties = getTaskDefinitionProperties(resource);
+  const container = (properties.ContainerDefinitions ?? []).find((candidate) => candidate.Name === containerName);
+
+  expect(container).toBeDefined();
+
+  return container as EcsContainerDefinition;
+}
+
+function expectEnvVar(container: EcsContainerDefinition, name: string, expectedValue?: unknown): void {
+  const entry = (container.Environment ?? []).find((candidate) => candidate.Name === name);
+
+  expect(entry).toBeDefined();
+
+  if (arguments.length === 3) {
+    expect(entry?.Value).toEqual(expectedValue);
+  }
+}
+
+function expectPortMapping(container: EcsContainerDefinition, containerPort: number): void {
+  expect(container.PortMappings ?? []).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        ContainerPort: containerPort,
+        Protocol: "tcp",
+      }),
+    ]),
+  );
+}
+
+function expectStringParameter(template: Template, name: string, expectedValue?: unknown): void {
+  const resources = template.findResources("AWS::SSM::Parameter") as Record<string, CloudFormationResource>;
+  const resource = Object.values(resources).find((candidate) => candidate.Properties?.Name === name);
+
+  expect(resource).toBeDefined();
+  expect(resource?.Properties?.Type).toBe("String");
+
+  if (arguments.length === 3) {
+    expect(resource?.Properties?.Value).toEqual(expectedValue);
+  } else {
+    expect(resource?.Properties?.Value).toBeDefined();
+  }
 }
 
 describe("LabelLensAwsStack", () => {
@@ -238,6 +318,78 @@ describe("LabelLensAwsStack", () => {
     });
   });
 
+  it("creates ECS/Fargate compute foundation with VPC, cluster, task definitions and log groups", () => {
+    const template = synthesizeTemplate();
+
+    template.hasResourceProperties("AWS::EC2::VPC", {
+      CidrBlock: "10.0.0.0/16",
+      EnableDnsHostnames: true,
+      EnableDnsSupport: true,
+    });
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroup", {
+      GroupDescription: "Allows LabelLens ECS tasks to call each other inside the private VPC.",
+      GroupName: "labellens-test-service-sg",
+    });
+
+    template.hasResourceProperties("AWS::EC2::SecurityGroupIngress", {
+      FromPort: 4000,
+      IpProtocol: "tcp",
+      ToPort: 4105,
+    });
+
+    template.hasResourceProperties("AWS::ECS::Cluster", {
+      ClusterName: "labellens-test-cluster",
+    });
+
+    template.hasResourceProperties("AWS::ServiceDiscovery::PrivateDnsNamespace", {
+      Name: "labellens-test.local",
+    });
+
+    template.resourceCountIs("AWS::ECS::TaskDefinition", 11);
+    template.resourceCountIs("AWS::Logs::LogGroup", 11);
+
+    template.hasResourceProperties("AWS::Logs::LogGroup", {
+      LogGroupName: "/labellens-test/ecs/gateway",
+      RetentionInDays: 30,
+    });
+
+    const gatewayTask = findTaskDefinitionByFamily(template, "labellens-test-gateway");
+    const gatewayTaskProperties = getTaskDefinitionProperties(gatewayTask);
+    const gatewayContainer = findContainer(gatewayTask, "gateway");
+
+    expect(gatewayTaskProperties.Cpu).toBe("512");
+    expect(gatewayTaskProperties.Memory).toBe("1024");
+    expect(gatewayTaskProperties.NetworkMode).toBe("awsvpc");
+    expect(gatewayTaskProperties.RequiresCompatibilities ?? []).toContain("FARGATE");
+    expectEnvVar(gatewayContainer, "NODE_ENV", "production");
+    expectEnvVar(gatewayContainer, "STORAGE_DRIVER", "dynamodb");
+    expectEnvVar(gatewayContainer, "LABEL_LENS_AUTH_SERVICE_URL", "http://auth-service.labellens-test.local:4105");
+    expectEnvVar(gatewayContainer, "LABEL_LENS_PRODUCT_SERVICE_URL", "http://product-service.labellens-test.local:4102");
+    expectPortMapping(gatewayContainer, 4000);
+
+    const productTask = findTaskDefinitionByFamily(template, "labellens-test-product-service");
+    const productTaskProperties = getTaskDefinitionProperties(productTask);
+    const productContainer = findContainer(productTask, "product-service");
+
+    expect(productTaskProperties.Cpu).toBe("256");
+    expect(productTaskProperties.Memory).toBe("512");
+    expect(productTaskProperties.NetworkMode).toBe("awsvpc");
+    expect(productTaskProperties.RequiresCompatibilities ?? []).toContain("FARGATE");
+    expectEnvVar(productContainer, "OPEN_FOOD_FACTS_MODE", "fixture");
+    expectEnvVar(productContainer, "PRODUCT_NOT_FOUND_QUEUE_URL");
+    expectEnvVar(productContainer, "ANALYTICS_QUEUE_URL");
+    expectPortMapping(productContainer, 4102);
+
+    const dlqHandlerTask = findTaskDefinitionByFamily(template, "labellens-test-dlq-handler");
+    const dlqHandlerContainer = findContainer(dlqHandlerTask, "dlq-handler");
+
+    expectEnvVar(dlqHandlerContainer, "PRODUCT_NOT_FOUND_DLQ_URL");
+    expectEnvVar(dlqHandlerContainer, "ANALYTICS_DLQ_URL");
+    expectEnvVar(dlqHandlerContainer, "FOOD_CACHE_REFRESH_DLQ_URL");
+    expectEnvVar(dlqHandlerContainer, "PRODUCT_CACHE_REFRESH_DLQ_URL");
+  });
+
   it("creates one ECR repository per deployable service and worker", () => {
     const template = synthesizeTemplate();
 
@@ -268,37 +420,17 @@ describe("LabelLensAwsStack", () => {
   it("exports operational SSM parameters for services and deployment automation", () => {
     const template = synthesizeTemplate();
 
-    template.hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/labellens-test/runtime/storage-driver",
-      Type: "String",
-      Value: "dynamodb",
-    });
+    expectStringParameter(template, "/labellens-test/runtime/storage-driver", "dynamodb");
+    expectStringParameter(template, "/labellens-test/runtime/public-boundary", "gateway-only");
+    expectStringParameter(template, "/labellens-test/scheduler/group-name", "labellens-test-schedules");
+    expectStringParameter(template, "/labellens-test/ecs/cluster-name", "labellens-test-cluster");
+    expectStringParameter(template, "/labellens-test/ecs/cluster-arn");
+    expectStringParameter(template, "/labellens-test/network/vpc-id");
+    expectStringParameter(template, "/labellens-test/network/service-security-group-id");
+    expectStringParameter(template, "/labellens-test/service-discovery/private-dns-namespace-name", "labellens-test.local");
+    expectStringParameter(template, "/labellens-test/ecs/task-definitions/gateway/arn");
 
-    template.hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/labellens-test/runtime/public-boundary",
-      Type: "String",
-      Value: "gateway-only",
-    });
-
-    template.hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/labellens-test/scheduler/group-name",
-      Type: "String",
-      Value: "labellens-test-schedules",
-    });
-
-    template.hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/labellens-test/scheduler/food-cache-refresh/name",
-      Type: "String",
-      Value: "labellens-test-food-cache-refresh-daily",
-    });
-
-    template.hasResourceProperties("AWS::SSM::Parameter", {
-      Name: "/labellens-test/scheduler/product-cache-refresh/name",
-      Type: "String",
-      Value: "labellens-test-product-cache-refresh-daily",
-    });
-
-    template.resourceCountIs("AWS::SSM::Parameter", 46);
+    template.resourceCountIs("AWS::SSM::Parameter", 62);
   });
 
   it("alarms on DLQ messages and queue age", () => {

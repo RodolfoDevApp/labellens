@@ -3,6 +3,7 @@ export type LabelLensAwsConfig = {
   resourcePrefix: string;
   tableName: string;
   containerRepositoryNames: readonly string[];
+  compute: ComputeConfig;
   queues: {
     productNotFound: QueueConfig;
     analytics: QueueConfig;
@@ -14,6 +15,30 @@ export type LabelLensAwsConfig = {
     foodCacheRefresh: ScheduleConfig;
     productCacheRefresh: ScheduleConfig;
   };
+};
+
+export type ComputeConfig = {
+  vpcName: string;
+  clusterName: string;
+  serviceSecurityGroupName: string;
+  privateDnsNamespaceName: string;
+  imageTag: string;
+  maxAzs: number;
+  natGateways: number;
+  gatewayAllowedOrigins: readonly string[];
+  defaultTask: {
+    cpu: number;
+    memoryLimitMiB: number;
+  };
+  deployables: readonly DeployableContainerConfig[];
+};
+
+export type DeployableContainerConfig = {
+  name: string;
+  kind: "service" | "worker";
+  port?: number;
+  cpu?: number;
+  memoryLimitMiB?: number;
 };
 
 export type QueueConfig = {
@@ -51,6 +76,33 @@ export function createLabelLensAwsConfig(environmentName: string): LabelLensAwsC
     resourcePrefix,
     tableName: `${resourcePrefix}-table`,
     containerRepositoryNames: serviceContainerRepositoryNames.map((name) => `${resourcePrefix}/${name}`),
+    compute: {
+      vpcName: `${resourcePrefix}-vpc`,
+      clusterName: `${resourcePrefix}-cluster`,
+      serviceSecurityGroupName: `${resourcePrefix}-service-sg`,
+      privateDnsNamespaceName: `${resourcePrefix}.local`,
+      imageTag: "latest",
+      maxAzs: 2,
+      natGateways: 1,
+      gatewayAllowedOrigins: ["http://localhost:3000"],
+      defaultTask: {
+        cpu: 256,
+        memoryLimitMiB: 512,
+      },
+      deployables: [
+        { name: "gateway", kind: "service", port: 4000, cpu: 512, memoryLimitMiB: 1024 },
+        { name: "auth-service", kind: "service", port: 4105 },
+        { name: "food-service", kind: "service", port: 4101 },
+        { name: "product-service", kind: "service", port: 4102 },
+        { name: "menu-service", kind: "service", port: 4103 },
+        { name: "favorites-service", kind: "service", port: 4104 },
+        { name: "product-not-found-worker", kind: "worker" },
+        { name: "analytics-worker", kind: "worker" },
+        { name: "food-cache-refresh-worker", kind: "worker" },
+        { name: "product-cache-refresh-worker", kind: "worker" },
+        { name: "dlq-handler", kind: "worker" },
+      ],
+    },
     queues: {
       productNotFound: {
         queueName: `${resourcePrefix}-product-not-found-queue`,

@@ -74,3 +74,16 @@ npm run containers:build -- -Image gateway -Tag local
 ```
 
 The account becomes necessary when tagging/pushing to ECR or deploying compute.
+
+## Phase 8C status
+
+Phase 8C adds AWS compute foundation in CDK without requiring AWS deployment yet:
+
+- VPC and ECS cluster are synthesized.
+- Service security group and private DNS namespace are synthesized.
+- Fargate task definitions are synthesized for all services and workers.
+- Task definitions use ECR images from the Phase 8B repositories.
+- Runtime environment variables are wired from CDK resources.
+- Task roles receive DynamoDB and per-queue SQS permissions.
+
+The next AWS block should turn these task definitions into ECS services and add the public/private ingress path.

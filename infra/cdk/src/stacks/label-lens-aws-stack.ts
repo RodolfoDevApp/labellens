@@ -1,6 +1,7 @@
 import { CfnOutput, Stack, type StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import type { LabelLensAwsConfig } from "../config/label-lens-aws-config.js";
+import { LabelLensComputeConstruct } from "../constructs/label-lens-compute-construct.js";
 import { LabelLensContainerRepositoriesConstruct } from "../constructs/label-lens-container-repositories-construct.js";
 import { LabelLensDataConstruct } from "../constructs/label-lens-data-construct.js";
 import { LabelLensMessagingConstruct } from "../constructs/label-lens-messaging-construct.js";
@@ -39,9 +40,27 @@ export class LabelLensAwsStack extends Stack {
       productCacheRefreshDeadLetterQueue: messaging.productCacheRefreshDeadLetterQueue,
     });
 
-    new LabelLensContainerRepositoriesConstruct(this, "ContainerRepositories", {
+    const containerRepositories = new LabelLensContainerRepositoriesConstruct(this, "ContainerRepositories", {
       resourcePrefix: props.config.resourcePrefix,
       repositoryNames: props.config.containerRepositoryNames,
+    });
+
+    const compute = new LabelLensComputeConstruct(this, "Compute", {
+      resourcePrefix: props.config.resourcePrefix,
+      environmentName: props.config.environmentName,
+      table: data.table,
+      repositories: containerRepositories.repositories,
+      queues: {
+        productNotFound: messaging.productNotFoundQueue,
+        productNotFoundDeadLetter: messaging.productNotFoundDeadLetterQueue,
+        analytics: messaging.analyticsQueue,
+        analyticsDeadLetter: messaging.analyticsDeadLetterQueue,
+        foodCacheRefresh: messaging.foodCacheRefreshQueue,
+        foodCacheRefreshDeadLetter: messaging.foodCacheRefreshDeadLetterQueue,
+        productCacheRefresh: messaging.productCacheRefreshQueue,
+        productCacheRefreshDeadLetter: messaging.productCacheRefreshDeadLetterQueue,
+      },
+      compute: props.config.compute,
     });
 
     new LabelLensOperationalParametersConstruct(this, "OperationalParameters", {
@@ -67,6 +86,14 @@ export class LabelLensAwsStack extends Stack {
 
     new CfnOutput(this, "ProductCacheRefreshQueueUrl", {
       value: messaging.productCacheRefreshQueue.queueUrl,
+    });
+
+    new CfnOutput(this, "EcsClusterName", {
+      value: compute.cluster.clusterName,
+    });
+
+    new CfnOutput(this, "VpcId", {
+      value: compute.vpc.vpcId,
     });
   }
 }
