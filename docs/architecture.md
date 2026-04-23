@@ -97,9 +97,10 @@ AWS account / region
   -> DynamoDB single table
   -> SQS product-not-found queue + DLQ
   -> SQS analytics queue + DLQ
-  -> ECR repositories for gateway, services and workers
+  -> ECR repositories for gateway and HTTP services
+  -> Lambda consumers for async SQS processing
   -> SSM parameters for runtime discovery
   -> CloudWatch alarms for DLQs and queue age
 ```
 
-This phase intentionally does not create ECS services or Lambda functions yet. Runtime compute requires production images to exist first. The next AWS phase must add production Dockerfiles, image publishing, and then ECS/Lambda resources wired to the ECR repositories from this foundation stack.
+AWS compute now separates HTTP services from async consumers: ECS/Fargate owns the gateway and business HTTP services; Lambda owns SQS consumers.

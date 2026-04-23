@@ -1,20 +1,24 @@
 # LabelLens AWS CDK
 
-This workspace models the AWS resources that already exist in the local enterprise stack. It does not invent routes or services.
+This workspace models the AWS resources for the sealed v1 architecture. It does not invent routes, product features or alternate runtimes.
 
-## Phase 8 scope
+## Current AWS scope
 
-This phase creates the AWS foundation that can be deployed without assuming built container images already exist:
+This CDK stack creates:
 
 - DynamoDB single table with `PK`, `SK`, `expiresAt`, on-demand billing, point-in-time recovery and deletion protection.
-- SQS queues and DLQs for the two closed async flows:
-  - `product.not_found.v1` -> `product-not-found-worker`
-  - analytics events -> `analytics-worker`
-- CloudWatch alarms for DLQ messages and old queue messages.
-- ECR repositories for every deployable service and worker.
+- SQS Standard queues and DLQs for the closed async flows.
+- EventBridge Scheduler rules that publish refresh requests to SQS.
+- ECS/Fargate compute only for the gateway and HTTP microservices.
+- Lambda consumers for async SQS processing:
+  - `product-not-found-handler`
+  - `analytics-consumer`
+  - `food-cache-refresh`
+  - `product-cache-refresh`
+  - `dlq-handler`
+- SQS event source mappings with batch size 10, maximum batching window 5 seconds and partial batch response enabled.
+- ECR repositories only for HTTP services that run on ECS/Fargate.
 - SSM parameters for resource discovery by deployment automation.
-
-Compute deployment is intentionally not faked in this phase. ECS services and Lambda functions require container images to exist first. That belongs to the next phase after service Dockerfiles and image publishing are sealed.
 
 ## Commands
 
@@ -34,13 +38,13 @@ npm run synth:cdk -- -c environmentName=staging
 ## Deploy order
 
 1. Bootstrap the AWS account/region if needed.
-2. Deploy this foundation stack.
-3. Build and push service and worker images to the generated ECR repositories.
-4. Add runtime compute stack for gateway, private services and SQS-triggered workers.
+2. Deploy infrastructure in bootstrap mode if ECR images do not exist yet.
+3. Build and push the six HTTP service images to ECR.
+4. Deploy release mode with ECS HTTP services and Lambda SQS consumers.
 
 ## Non-goals in this phase
 
 - No public microservice endpoints.
-- No placeholder ECS tasks.
-- No dummy Lambda image references.
-- No API routes beyond the existing `/api/v1` contract.
+- No ECS/Fargate workers for async consumers.
+- No API Gateway/Cognito/VPC Link yet; that is the next corrective phase.
+- No product features beyond the existing `/api/v1` contract.

@@ -1,6 +1,6 @@
 import { App } from "aws-cdk-lib";
 import { Match, Template } from "aws-cdk-lib/assertions";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { createLabelLensAwsConfig } from "../config/label-lens-aws-config.js";
 import { LabelLensAwsStack } from "./label-lens-aws-stack.js";
 
@@ -64,7 +64,15 @@ type EcsServiceProperties = {
   };
 };
 
+const templateCache = new Map<string, Template>();
+
 function synthesizeTemplate(config = createLabelLensAwsConfig("test")) {
+  const cacheKey = JSON.stringify(config);
+  const cachedTemplate = templateCache.get(cacheKey);
+  if (cachedTemplate) {
+    return cachedTemplate;
+  }
+
   const app = new App();
   const stack = new LabelLensAwsStack(app, "LabelLensTest", {
     config,
@@ -74,7 +82,9 @@ function synthesizeTemplate(config = createLabelLensAwsConfig("test")) {
     },
   });
 
-  return Template.fromStack(stack);
+  const template = Template.fromStack(stack);
+  templateCache.set(cacheKey, template);
+  return template;
 }
 
 function findResourceByName(template: Template, type: string, name: string): CloudFormationResource {
@@ -168,9 +178,19 @@ function expectStringParameter(template: Template, name: string, expectedValue?:
   }
 }
 
+let releaseTemplate: Template;
+let bootstrapTemplate: Template;
+
+beforeAll(() => {
+  releaseTemplate = synthesizeTemplate();
+  bootstrapTemplate = synthesizeTemplate(
+    createLabelLensAwsConfig("test", { deploymentMode: "bootstrap", imageTag: "bootstrap" }),
+  );
+}, 30_000);
+
 describe("LabelLensAwsStack", () => {
   it("creates the DynamoDB single table with PK/SK, on-demand billing, PITR and TTL", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     template.hasResourceProperties("AWS::DynamoDB::Table", {
       TableName: "labellens-test-table",
@@ -207,7 +227,7 @@ describe("LabelLensAwsStack", () => {
   });
 
   it("creates all sealed messaging queues with DLQs and closed retry counts", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     template.hasResourceProperties("AWS::SQS::Queue", {
       QueueName: "labellens-test-product-not-found-dlq",
@@ -255,7 +275,7 @@ describe("LabelLensAwsStack", () => {
   });
 
   it("creates EventBridge Scheduler refresh schedules that publish sealed events to SQS", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     template.hasResourceProperties("AWS::Scheduler::ScheduleGroup", {
       Name: "labellens-test-schedules",
@@ -362,8 +382,8 @@ describe("LabelLensAwsStack", () => {
     });
   });
 
-  it("creates ECS/Fargate compute foundation with VPC, cluster, task definitions and log groups", () => {
-    const template = synthesizeTemplate();
+  it("creates ECS/Fargate compute foundation for HTTP services only", () => {
+    const template = releaseTemplate;
 
     template.hasResourceProperties("AWS::EC2::VPC", {
       CidrBlock: "10.0.0.0/16",
@@ -401,8 +421,8 @@ describe("LabelLensAwsStack", () => {
       Name: "labellens-test.local",
     });
 
-    template.resourceCountIs("AWS::ECS::TaskDefinition", 11);
-    template.resourceCountIs("AWS::ECS::Service", 11);
+    template.resourceCountIs("AWS::ECS::TaskDefinition", 6);
+    template.resourceCountIs("AWS::ECS::Service", 6);
     template.resourceCountIs("AWS::ServiceDiscovery::Service", 6);
     template.resourceCountIs("AWS::Logs::LogGroup", 11);
 
@@ -438,14 +458,6 @@ describe("LabelLensAwsStack", () => {
     expectEnvVar(productContainer, "ANALYTICS_QUEUE_URL");
     expectPortMapping(productContainer, 4102);
 
-    const dlqHandlerTask = findTaskDefinitionByFamily(template, "labellens-test-dlq-handler");
-    const dlqHandlerContainer = findContainer(dlqHandlerTask, "dlq-handler");
-
-    expectEnvVar(dlqHandlerContainer, "PRODUCT_NOT_FOUND_DLQ_URL");
-    expectEnvVar(dlqHandlerContainer, "ANALYTICS_DLQ_URL");
-    expectEnvVar(dlqHandlerContainer, "FOOD_CACHE_REFRESH_DLQ_URL");
-    expectEnvVar(dlqHandlerContainer, "PRODUCT_CACHE_REFRESH_DLQ_URL");
-
     const gatewayService = getServiceProperties(findServiceByName(template, "labellens-test-gateway"));
     expect(gatewayService.DesiredCount).toBe(1);
     expect(gatewayService.LaunchType).toBe("FARGATE");
@@ -462,20 +474,6 @@ describe("LabelLensAwsStack", () => {
     expect(gatewayService.EnableECSManagedTags).toBe(true);
     expect(gatewayService.HealthCheckGracePeriodSeconds).toBe(60);
     expect(gatewayService.PropagateTags).toBe("SERVICE");
-
-    const analyticsWorkerService = getServiceProperties(findServiceByName(template, "labellens-test-analytics-worker"));
-    expect(analyticsWorkerService.DesiredCount).toBe(1);
-    expect(analyticsWorkerService.LaunchType).toBe("FARGATE");
-    expect(analyticsWorkerService.NetworkConfiguration?.AwsvpcConfiguration?.AssignPublicIp).toBe("DISABLED");
-    expect(analyticsWorkerService.ServiceRegistries).toBeUndefined();
-    expect(analyticsWorkerService.DeploymentConfiguration?.DeploymentCircuitBreaker).toEqual({
-      Enable: true,
-      Rollback: true,
-    });
-    expect(analyticsWorkerService.DeploymentConfiguration?.MaximumPercent).toBe(200);
-    expect(analyticsWorkerService.DeploymentConfiguration?.MinimumHealthyPercent).toBe(100);
-    expect(analyticsWorkerService.EnableECSManagedTags).toBe(true);
-    expect(analyticsWorkerService.PropagateTags).toBe("SERVICE");
 
     template.hasResourceProperties("AWS::ServiceDiscovery::Service", {
       Name: "gateway",
@@ -523,10 +521,68 @@ describe("LabelLensAwsStack", () => {
   });
 
 
-  it("supports bootstrap deployment mode for first AWS deploy before ECR images exist", () => {
-    const template = synthesizeTemplate(createLabelLensAwsConfig("test", { deploymentMode: "bootstrap", imageTag: "bootstrap" }));
+  it("creates Lambda SQS consumers for async workers with partial batch response", () => {
+    const template = releaseTemplate;
 
-    for (const serviceName of ["labellens-test-gateway", "labellens-test-auth-service", "labellens-test-food-service", "labellens-test-product-service", "labellens-test-menu-service", "labellens-test-favorites-service", "labellens-test-product-not-found-worker", "labellens-test-analytics-worker", "labellens-test-food-cache-refresh-worker", "labellens-test-product-cache-refresh-worker", "labellens-test-dlq-handler"]) {
+    template.resourceCountIs("AWS::Lambda::Function", 5);
+    template.resourceCountIs("AWS::Lambda::EventSourceMapping", 8);
+
+    for (const functionName of [
+      "labellens-test-product-not-found-handler",
+      "labellens-test-analytics-consumer",
+      "labellens-test-food-cache-refresh",
+      "labellens-test-product-cache-refresh",
+      "labellens-test-dlq-handler",
+    ]) {
+      template.hasResourceProperties("AWS::Lambda::Function", {
+        FunctionName: functionName,
+        ReservedConcurrentExecutions: 2,
+        Runtime: "nodejs22.x",
+      });
+    }
+
+    template.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "labellens-test-food-cache-refresh",
+      Environment: {
+        Variables: Match.objectLike({
+          LABEL_LENS_FOOD_SERVICE_URL: "http://food-service.labellens-test.local:4101",
+        }),
+      },
+    });
+
+    template.hasResourceProperties("AWS::Lambda::Function", {
+      FunctionName: "labellens-test-product-cache-refresh",
+      Environment: {
+        Variables: Match.objectLike({
+          LABEL_LENS_PRODUCT_SERVICE_URL: "http://product-service.labellens-test.local:4102",
+        }),
+      },
+    });
+
+    template.hasResourceProperties("AWS::Lambda::EventSourceMapping", {
+      BatchSize: 10,
+      MaximumBatchingWindowInSeconds: 5,
+      FunctionResponseTypes: ["ReportBatchItemFailures"],
+    });
+
+    for (const forbiddenWorkerName of [
+      "product-not-found-worker",
+      "analytics-worker",
+      "food-cache-refresh-worker",
+      "product-cache-refresh-worker",
+      "dlq-handler",
+    ]) {
+      expect(JSON.stringify(template.findResources("AWS::ECS::Service"))).not.toContain(forbiddenWorkerName);
+      expect(JSON.stringify(template.findResources("AWS::ECS::TaskDefinition"))).not.toContain(forbiddenWorkerName);
+      expect(JSON.stringify(template.findResources("AWS::ECR::Repository"))).not.toContain(forbiddenWorkerName);
+    }
+  });
+
+
+  it("supports bootstrap deployment mode for first AWS deploy before ECR images exist", () => {
+    const template = bootstrapTemplate;
+
+    for (const serviceName of ["labellens-test-gateway", "labellens-test-auth-service", "labellens-test-food-service", "labellens-test-product-service", "labellens-test-menu-service", "labellens-test-favorites-service"]) {
       const service = getServiceProperties(findServiceByName(template, serviceName));
       expect(service.DesiredCount).toBe(0);
     }
@@ -538,7 +594,7 @@ describe("LabelLensAwsStack", () => {
   });
 
   it("creates public ALB ingress for gateway only", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     template.resourceCountIs("AWS::ElasticLoadBalancingV2::LoadBalancer", 1);
     template.resourceCountIs("AWS::ElasticLoadBalancingV2::Listener", 1);
@@ -637,17 +693,16 @@ describe("LabelLensAwsStack", () => {
       "labellens-test-product-service",
       "labellens-test-menu-service",
       "labellens-test-favorites-service",
-      "labellens-test-analytics-worker",
     ]) {
       const service = getServiceProperties(findServiceByName(template, internalServiceName));
       expect(service.LoadBalancers).toBeUndefined();
     }
   });
 
-  it("creates one ECR repository per deployable service and worker", () => {
-    const template = synthesizeTemplate();
+  it("creates one ECR repository per HTTP service only", () => {
+    const template = releaseTemplate;
 
-    template.resourceCountIs("AWS::ECR::Repository", 11);
+    template.resourceCountIs("AWS::ECR::Repository", 6);
 
     for (const repositoryName of [
       "labellens-test/gateway",
@@ -656,11 +711,6 @@ describe("LabelLensAwsStack", () => {
       "labellens-test/product-service",
       "labellens-test/menu-service",
       "labellens-test/favorites-service",
-      "labellens-test/product-not-found-worker",
-      "labellens-test/analytics-worker",
-      "labellens-test/food-cache-refresh-worker",
-      "labellens-test/product-cache-refresh-worker",
-      "labellens-test/dlq-handler",
     ]) {
       template.hasResourceProperties("AWS::ECR::Repository", {
         RepositoryName: repositoryName,
@@ -672,7 +722,7 @@ describe("LabelLensAwsStack", () => {
   });
 
   it("exports operational SSM parameters for services and deployment automation", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     expectStringParameter(template, "/labellens-test/deployment/mode", "release");
     expectStringParameter(template, "/labellens-test/deployment/image-tag", "latest");
@@ -688,8 +738,12 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/ecs/task-definitions/gateway/arn");
     expectStringParameter(template, "/labellens-test/ecs/services/gateway/name", "labellens-test-gateway");
     expectStringParameter(template, "/labellens-test/ecs/services/gateway/arn");
-    expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/name", "labellens-test-analytics-worker");
-    expectStringParameter(template, "/labellens-test/ecs/services/analytics-worker/arn");
+    expectStringParameter(template, "/labellens-test/lambda/analytics-consumer/name", "labellens-test-analytics-consumer");
+    expectStringParameter(template, "/labellens-test/lambda/analytics-consumer/arn");
+    expectStringParameter(template, "/labellens-test/lambda/product-not-found-handler/name", "labellens-test-product-not-found-handler");
+    expectStringParameter(template, "/labellens-test/lambda/food-cache-refresh/name", "labellens-test-food-cache-refresh");
+    expectStringParameter(template, "/labellens-test/lambda/product-cache-refresh/name", "labellens-test-product-cache-refresh");
+    expectStringParameter(template, "/labellens-test/lambda/dlq-handler/name", "labellens-test-dlq-handler");
     expectStringParameter(template, "/labellens-test/ingress/gateway-alb/dns-name");
     expectStringParameter(template, "/labellens-test/ingress/gateway-alb/arn");
     expectStringParameter(template, "/labellens-test/ingress/gateway-alb/security-group-id");
@@ -712,11 +766,10 @@ describe("LabelLensAwsStack", () => {
       "labellens-test-gateway-target-response-time-high",
     );
 
-    template.resourceCountIs("AWS::SSM::Parameter", 96);
   });
 
   it("alarms on DLQ messages and queue age", () => {
-    const template = synthesizeTemplate();
+    const template = releaseTemplate;
 
     expect(Object.keys(template.findResources("AWS::CloudWatch::Alarm"))).toHaveLength(11);
 

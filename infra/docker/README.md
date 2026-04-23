@@ -1,6 +1,6 @@
 # LabelLens container foundation
 
-Phase 8B prepares production-style Node container images for the deployable backend boundary:
+The AWS container path builds only the HTTP boundary that still runs on ECS/Fargate:
 
 - gateway
 - auth-service
@@ -8,13 +8,8 @@ Phase 8B prepares production-style Node container images for the deployable back
 - product-service
 - menu-service
 - favorites-service
-- product-not-found-worker
-- analytics-worker
-- food-cache-refresh-worker
-- product-cache-refresh-worker
-- dlq-handler
 
-The local development compose file still uses `node:24-bookworm-slim` with mounted source and `dev:*` scripts. These images are for the AWS/ECR path.
+Async consumers are not container deployables in AWS. They run as Lambda functions wired to SQS event source mappings. The local development compose file may still run worker containers as local runners; that does not define the AWS runtime.
 
 ## Check the foundation
 
@@ -50,7 +45,6 @@ This requires AWS CLI credentials and existing ECR repositories from CDK:
 npm run containers:push -- -AccountId 123456789012 -Region us-east-1 -Environment dev -RemoteTag latest
 ```
 
-
 ## First AWS deploy interaction
 
-Phase 8G wraps these container scripts in `npm run aws:first-deploy`: first CDK deploys infrastructure in `bootstrap` mode, then images are built/tagged/pushed, then CDK deploys `release` mode with the selected image tag.
+The AWS deploy flow builds and pushes these six HTTP service images only. Lambda consumers are bundled by CDK from `apps/lambdas/src/handlers` during synth/deploy.

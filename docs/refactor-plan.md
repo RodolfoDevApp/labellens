@@ -81,18 +81,18 @@ Phase 8C adds AWS compute foundation in CDK without requiring AWS deployment yet
 
 - VPC and ECS cluster are synthesized.
 - Service security group and private DNS namespace are synthesized.
-- Fargate task definitions are synthesized for all services and workers.
-- Task definitions use ECR images from the Phase 8B repositories.
+- Fargate task definitions are synthesized only for gateway and HTTP microservices.
+- Task definitions use ECR images from the HTTP-service repositories.
 - Runtime environment variables are wired from CDK resources.
-- Task roles receive DynamoDB and per-queue SQS permissions.
+- HTTP service task roles receive DynamoDB and producer SQS permissions.
 
 ## Phase 8D status
 
 Phase 8D turns the synthesized task definitions into ECS Fargate services without requiring an AWS account yet:
 
-- All 11 deployables synthesize as ECS services.
+- The 6 HTTP deployables synthesize as ECS services.
 - Gateway and private HTTP services register in the private Cloud Map namespace.
-- Async workers synthesize as private ECS services without Cloud Map registration.
+- Async consumers are not ECS services; they are AWS Lambda consumers in Phase 8I.
 - All services run in private-with-egress subnets with public IP assignment disabled.
 - ECS service names and ARNs are exported to SSM for deployment automation.
 
@@ -106,7 +106,7 @@ Phase 8E adds the AWS public ingress foundation while keeping the gateway as the
 - HTTP listener routes only to the gateway ECS service.
 - Gateway target group uses `/gateway/health` for ALB health checks.
 - The gateway gets a dedicated ECS security group for public ingress.
-- Internal services and workers remain private and are not registered as load balancer targets.
+- Internal HTTP services remain private and are not registered as load balancer targets.
 - ALB operational values are exported to SSM for later deployment automation.
 
 Phase 8F hardens the deploy-time behavior and observability before any real AWS deployment:

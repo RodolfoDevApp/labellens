@@ -5,6 +5,7 @@ import { LabelLensComputeConstruct } from "../constructs/label-lens-compute-cons
 import { LabelLensContainerRepositoriesConstruct } from "../constructs/label-lens-container-repositories-construct.js";
 import { LabelLensDataConstruct } from "../constructs/label-lens-data-construct.js";
 import { LabelLensIngressConstruct } from "../constructs/label-lens-ingress-construct.js";
+import { LabelLensLambdaConsumersConstruct } from "../constructs/label-lens-lambda-consumers-construct.js";
 import { LabelLensMessagingConstruct } from "../constructs/label-lens-messaging-construct.js";
 import { LabelLensOperationalParametersConstruct } from "../constructs/label-lens-operational-parameters-construct.js";
 import { LabelLensSchedulesConstruct } from "../constructs/label-lens-schedules-construct.js";
@@ -63,6 +64,24 @@ export class LabelLensAwsStack extends Stack {
       },
       compute: props.config.compute,
     });
+    new LabelLensLambdaConsumersConstruct(this, "LambdaConsumers", {
+      resourcePrefix: props.config.resourcePrefix,
+      table: data.table,
+      vpc: compute.vpc,
+      serviceSecurityGroup: compute.serviceSecurityGroup,
+      privateDnsNamespaceName: props.config.compute.privateDnsNamespaceName,
+      queues: {
+        productNotFound: messaging.productNotFoundQueue,
+        productNotFoundDeadLetter: messaging.productNotFoundDeadLetterQueue,
+        analytics: messaging.analyticsQueue,
+        analyticsDeadLetter: messaging.analyticsDeadLetterQueue,
+        foodCacheRefresh: messaging.foodCacheRefreshQueue,
+        foodCacheRefreshDeadLetter: messaging.foodCacheRefreshDeadLetterQueue,
+        productCacheRefresh: messaging.productCacheRefreshQueue,
+        productCacheRefreshDeadLetter: messaging.productCacheRefreshDeadLetterQueue,
+      },
+    });
+
 
     const gatewayService = compute.services.gateway;
 

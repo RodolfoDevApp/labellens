@@ -274,11 +274,7 @@ export class LabelLensComputeConstruct extends Construct {
       return 0;
     }
 
-    return deployable.desiredCount ?? this.defaultDesiredCount(compute, deployable);
-  }
-
-  private defaultDesiredCount(compute: ComputeConfig, deployable: DeployableContainerConfig): number {
-    return deployable.kind === "service" ? compute.defaultServiceDesiredCount : compute.defaultWorkerDesiredCount;
+    return deployable.desiredCount ?? compute.defaultServiceDesiredCount;
   }
 
   private configureAutoscaling(
@@ -352,36 +348,6 @@ export class LabelLensComputeConstruct extends Construct {
           ...common,
           ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
         };
-      case "product-not-found-worker":
-        return {
-          ...common,
-          PRODUCT_NOT_FOUND_QUEUE_URL: props.queues.productNotFound.queueUrl,
-        };
-      case "analytics-worker":
-        return {
-          ...common,
-          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
-        };
-      case "food-cache-refresh-worker":
-        return {
-          ...common,
-          FOOD_CACHE_REFRESH_QUEUE_URL: props.queues.foodCacheRefresh.queueUrl,
-          LABEL_LENS_FOOD_SERVICE_URL: serviceUrl("food-service", 4101),
-        };
-      case "product-cache-refresh-worker":
-        return {
-          ...common,
-          LABEL_LENS_PRODUCT_SERVICE_URL: serviceUrl("product-service", 4102),
-          PRODUCT_CACHE_REFRESH_QUEUE_URL: props.queues.productCacheRefresh.queueUrl,
-        };
-      case "dlq-handler":
-        return {
-          ...common,
-          ANALYTICS_DLQ_URL: props.queues.analyticsDeadLetter.queueUrl,
-          FOOD_CACHE_REFRESH_DLQ_URL: props.queues.foodCacheRefreshDeadLetter.queueUrl,
-          PRODUCT_CACHE_REFRESH_DLQ_URL: props.queues.productCacheRefreshDeadLetter.queueUrl,
-          PRODUCT_NOT_FOUND_DLQ_URL: props.queues.productNotFoundDeadLetter.queueUrl,
-        };
       default:
         return common;
     }
@@ -403,24 +369,6 @@ export class LabelLensComputeConstruct extends Construct {
       case "product-service":
         props.queues.analytics.grantSendMessages(taskDefinition.taskRole);
         props.queues.productNotFound.grantSendMessages(taskDefinition.taskRole);
-        break;
-      case "product-not-found-worker":
-        props.queues.productNotFound.grantConsumeMessages(taskDefinition.taskRole);
-        break;
-      case "analytics-worker":
-        props.queues.analytics.grantConsumeMessages(taskDefinition.taskRole);
-        break;
-      case "food-cache-refresh-worker":
-        props.queues.foodCacheRefresh.grantConsumeMessages(taskDefinition.taskRole);
-        break;
-      case "product-cache-refresh-worker":
-        props.queues.productCacheRefresh.grantConsumeMessages(taskDefinition.taskRole);
-        break;
-      case "dlq-handler":
-        props.queues.productNotFoundDeadLetter.grantConsumeMessages(taskDefinition.taskRole);
-        props.queues.analyticsDeadLetter.grantConsumeMessages(taskDefinition.taskRole);
-        props.queues.foodCacheRefreshDeadLetter.grantConsumeMessages(taskDefinition.taskRole);
-        props.queues.productCacheRefreshDeadLetter.grantConsumeMessages(taskDefinition.taskRole);
         break;
       default:
         break;

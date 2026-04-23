@@ -93,11 +93,6 @@ $serviceNames = @(
   "$resourcePrefix-product-service",
   "$resourcePrefix-menu-service",
   "$resourcePrefix-favorites-service",
-  "$resourcePrefix-product-not-found-worker",
-  "$resourcePrefix-analytics-worker",
-  "$resourcePrefix-food-cache-refresh-worker",
-  "$resourcePrefix-product-cache-refresh-worker",
-  "$resourcePrefix-dlq-handler"
 )
 Invoke-AwsTable -Arguments (@(
   "ecs",
@@ -113,6 +108,38 @@ Invoke-AwsTable -Arguments (@(
 ))
 Write-Host ""
 
+Write-Host "--- Lambda consumers ---"
+$lambdaNames = @(
+  "$resourcePrefix-product-not-found-handler",
+  "$resourcePrefix-analytics-consumer",
+  "$resourcePrefix-food-cache-refresh",
+  "$resourcePrefix-product-cache-refresh",
+  "$resourcePrefix-dlq-handler"
+)
+Invoke-AwsTable -Arguments @(
+  "lambda",
+  "list-functions",
+  "--query",
+  "Functions[?starts_with(FunctionName, '$resourcePrefix-')].[FunctionName,Runtime,State,ReservedConcurrentExecutions]",
+  "--output",
+  "table"
+)
+Write-Host ""
+
+Write-Host "--- Lambda event source mappings ---"
+foreach ($lambdaName in $lambdaNames) {
+  Invoke-AwsTable -Arguments @(
+    "lambda",
+    "list-event-source-mappings",
+    "--function-name",
+    $lambdaName,
+    "--query",
+    "EventSourceMappings[*].[FunctionArn,EventSourceArn,State,BatchSize,MaximumBatchingWindowInSeconds]",
+    "--output",
+    "table"
+  )
+}
+Write-Host ""
 Write-Host "--- SQS queues ---"
 $queueParameterNames = @(
   "/$resourcePrefix/sqs/product-not-found/queue-url",

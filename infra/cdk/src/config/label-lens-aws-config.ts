@@ -62,7 +62,6 @@ export type ComputeConfig = {
   gatewayAllowedOrigins: readonly string[];
   serviceDiscoveryTtlSeconds: number;
   defaultServiceDesiredCount: number;
-  defaultWorkerDesiredCount: number;
   deploymentMinHealthyPercent: number;
   deploymentMaxHealthyPercent: number;
   gatewayHealthCheckGracePeriodSeconds: number;
@@ -75,7 +74,7 @@ export type ComputeConfig = {
 
 export type DeployableContainerConfig = {
   name: string;
-  kind: "service" | "worker";
+  kind: "service";
   port?: number;
   cpu?: number;
   memoryLimitMiB?: number;
@@ -108,11 +107,6 @@ export const serviceContainerRepositoryNames = [
   "product-service",
   "menu-service",
   "favorites-service",
-  "product-not-found-worker",
-  "analytics-worker",
-  "food-cache-refresh-worker",
-  "product-cache-refresh-worker",
-  "dlq-handler",
 ] as const;
 
 export function createLabelLensAwsConfig(
@@ -148,7 +142,6 @@ export function createLabelLensAwsConfig(
       gatewayAllowedOrigins,
       serviceDiscoveryTtlSeconds: 30,
       defaultServiceDesiredCount: 1,
-      defaultWorkerDesiredCount: 1,
       deploymentMinHealthyPercent: 100,
       deploymentMaxHealthyPercent: 200,
       gatewayHealthCheckGracePeriodSeconds: 60,
@@ -176,11 +169,6 @@ export function createLabelLensAwsConfig(
         { name: "product-service", kind: "service", port: 4102 },
         { name: "menu-service", kind: "service", port: 4103 },
         { name: "favorites-service", kind: "service", port: 4104 },
-        { name: "product-not-found-worker", kind: "worker" },
-        { name: "analytics-worker", kind: "worker" },
-        { name: "food-cache-refresh-worker", kind: "worker" },
-        { name: "product-cache-refresh-worker", kind: "worker" },
-        { name: "dlq-handler", kind: "worker" },
       ],
     },
     ingress: {
