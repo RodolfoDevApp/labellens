@@ -8,6 +8,8 @@ export type LabelLensAwsConfig = {
   deployment: DeploymentConfig;
   compute: ComputeConfig;
   ingress: IngressConfig;
+  auth: AuthConfig;
+  apiGateway: ApiGatewayConfig;
   queues: {
     productNotFound: QueueConfig;
     analytics: QueueConfig;
@@ -25,7 +27,6 @@ export type LabelLensAwsConfigOptions = {
   deploymentMode?: DeploymentMode;
   gatewayAllowedOrigins?: readonly string[];
   imageTag?: string;
-  ingressAllowedCidrBlocks?: readonly string[];
 };
 
 export type DeploymentConfig = {
@@ -43,10 +44,27 @@ export type IngressConfig = {
   healthCheckTimeoutSeconds: number;
   healthyThresholdCount: number;
   unhealthyThresholdCount: number;
-  allowedCidrBlocks: readonly string[];
   gatewayUnhealthyHostAlarmEvaluationPeriods: number;
   gatewayTarget5xxAlarmThreshold: number;
   gatewayTargetResponseTimeAlarmThresholdSeconds: number;
+};
+
+export type AuthConfig = {
+  userPoolName: string;
+  userPoolClientName: string;
+};
+
+export type ApiGatewayConfig = {
+  httpApiName: string;
+  stageName: string;
+  vpcLinkName: string;
+  vpcLinkSecurityGroupName: string;
+  corsAllowedOrigins: readonly string[];
+  corsAllowedHeaders: readonly string[];
+  corsAllowedMethods: readonly string[];
+  accessLogGroupName: string;
+  api5xxAlarmThreshold: number;
+  apiLatencyAlarmThresholdMs: number;
 };
 
 export type ComputeConfig = {
@@ -118,7 +136,6 @@ export function createLabelLensAwsConfig(
   const deploymentMode = options.deploymentMode ?? "release";
   const imageTag = normalizeImageTag(options.imageTag ?? "latest");
   const gatewayAllowedOrigins = normalizeStringList(options.gatewayAllowedOrigins, ["http://localhost:3000"]);
-  const ingressAllowedCidrBlocks = normalizeStringList(options.ingressAllowedCidrBlocks, ["0.0.0.0/0"]);
 
   return {
     environmentName: normalizedEnvironmentName,
@@ -172,7 +189,7 @@ export function createLabelLensAwsConfig(
       ],
     },
     ingress: {
-      loadBalancerSecurityGroupName: `${resourcePrefix}-public-alb-sg`,
+      loadBalancerSecurityGroupName: `${resourcePrefix}-internal-alb-sg`,
       httpPort: 80,
       gatewayTargetPort: 4000,
       gatewayHealthCheckPath: "/gateway/health",
@@ -181,10 +198,25 @@ export function createLabelLensAwsConfig(
       healthCheckTimeoutSeconds: 5,
       healthyThresholdCount: 2,
       unhealthyThresholdCount: 3,
-      allowedCidrBlocks: ingressAllowedCidrBlocks,
       gatewayUnhealthyHostAlarmEvaluationPeriods: 2,
       gatewayTarget5xxAlarmThreshold: 5,
       gatewayTargetResponseTimeAlarmThresholdSeconds: 2,
+    },
+    auth: {
+      userPoolName: `${resourcePrefix}-users`,
+      userPoolClientName: `${resourcePrefix}-web-client`,
+    },
+    apiGateway: {
+      httpApiName: `${resourcePrefix}-http-api`,
+      stageName: "$default",
+      vpcLinkName: `${resourcePrefix}-vpc-link`,
+      vpcLinkSecurityGroupName: `${resourcePrefix}-apigw-vpc-link-sg`,
+      corsAllowedOrigins: gatewayAllowedOrigins,
+      corsAllowedHeaders: ["authorization", "content-type", "x-correlation-id"],
+      corsAllowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      accessLogGroupName: `/${resourcePrefix}/apigateway/http-api`,
+      api5xxAlarmThreshold: 5,
+      apiLatencyAlarmThresholdMs: 2000,
     },
     queues: {
       productNotFound: {
@@ -224,42 +256,47 @@ export function createLabelLensAwsConfig(
   };
 }
 
-export function normalizeEnvironmentName(environmentName: string): string {
-  const normalized = environmentName.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-");
+function normalizeEnvironmentName(environmentName: string): string {
+  const normalized = environmentName.trim().toLowerCase();
 
   if (!normalized) {
-    return "dev";
+    throw new Error("environmentName must not be empty.");
   }
 
-  return normalized.replace(/^-+|-+$/g, "").slice(0, 24) || "dev";
-}
-
-export function normalizeDeploymentMode(mode: string): DeploymentMode {
-  const normalized = mode.trim().toLowerCase();
-
-  if (normalized === "bootstrap" || normalized === "release") {
-    return normalized;
-  }
-
-  throw new Error("Deployment mode must be either 'bootstrap' or 'release'.");
-}
-
-export function normalizeImageTag(tag: string): string {
-  const normalized = tag.trim();
-
-  if (!normalized) {
-    return "latest";
-  }
-
-  if (!/^[a-zA-Z0-9_.-]{1,128}$/.test(normalized)) {
-    throw new Error("Container image tag must be 1-128 characters and contain only letters, numbers, underscore, dot or dash.");
+  if (!/^[a-z0-9-]+$/.test(normalized)) {
+    throw new Error("environmentName must contain only lowercase letters, numbers, and hyphens.");
   }
 
   return normalized;
 }
 
-function normalizeStringList(value: readonly string[] | undefined, fallback: readonly string[]): readonly string[] {
-  const candidates = value?.map((entry) => entry.trim()).filter(Boolean) ?? [];
+export function normalizeDeploymentMode(value: string): DeploymentMode {
+  const normalized = value.trim().toLowerCase();
 
-  return candidates.length > 0 ? candidates : fallback;
+  if (normalized === "bootstrap" || normalized === "release") {
+    return normalized;
+  }
+
+  throw new Error("deploymentMode must be either 'bootstrap' or 'release'.");
+}
+
+export function normalizeImageTag(imageTag: string): string {
+  const normalized = imageTag.trim();
+
+  if (!normalized) {
+    throw new Error("imageTag must not be empty.");
+  }
+
+  return normalized;
+}
+
+function normalizeStringList(values: readonly string[] | undefined, fallback: readonly string[]): string[] {
+  const source = values && values.length > 0 ? values : fallback;
+  const normalized = source.map((value) => value.trim()).filter((value) => value.length > 0);
+
+  if (normalized.length === 0) {
+    return [...fallback];
+  }
+
+  return Array.from(new Set(normalized));
 }

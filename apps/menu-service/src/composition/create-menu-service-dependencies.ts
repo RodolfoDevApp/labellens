@@ -8,8 +8,8 @@ import {
 } from "@labellens/application";
 import {
   createDynamoDbDocumentClient,
+  createRuntimeAuthSessionVerifier,
   createSqsClient,
-  DevAuthSessionVerifier,
   DynamoDbSavedMenuRepository,
   InMemorySavedMenuRepository,
   NoopEventPublisher,
@@ -48,7 +48,10 @@ export function createMenuServiceDependencies(): MenuServiceDependencies {
     : new NoopEventPublisher();
 
   return {
-    authSessionVerifier: new DevAuthSessionVerifier(),
+    authSessionVerifier: createRuntimeAuthSessionVerifier({
+      cognitoUserPoolId: config.cognitoUserPoolId,
+      cognitoUserPoolClientId: config.cognitoUserPoolClientId,
+    }),
     useCases: {
       calculateMenu: new CalculateMenuCommand(),
       deleteMenu: new DeleteMenuCommand(repository),

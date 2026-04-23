@@ -5,8 +5,8 @@ import {
 } from "@labellens/application";
 import {
   createDynamoDbDocumentClient,
+  createRuntimeAuthSessionVerifier,
   createSqsClient,
-  DevAuthSessionVerifier,
   DynamoDbFavoriteRepository,
   InMemoryFavoriteRepository,
   NoopEventPublisher,
@@ -45,7 +45,10 @@ export function createFavoritesServiceDependencies(): FavoritesServiceDependenci
     : new NoopEventPublisher();
 
   return {
-    authSessionVerifier: new DevAuthSessionVerifier(),
+    authSessionVerifier: createRuntimeAuthSessionVerifier({
+      cognitoUserPoolId: config.cognitoUserPoolId,
+      cognitoUserPoolClientId: config.cognitoUserPoolClientId,
+    }),
     useCases: {
       deleteFavorite: new DeleteFavoriteCommand(repository),
       listFavorites: new ListFavoritesQuery(repository),

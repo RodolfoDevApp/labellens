@@ -2,42 +2,48 @@ import type { Hono } from "hono";
 import { demoLoginSchema } from "@labellens/contracts";
 import {
   createDevAccessToken,
-  DevAuthSessionVerifier,
+  createRuntimeAuthSessionVerifier,
 } from "@labellens/infrastructure";
 import { problemDetails, type ServiceBindings } from "@labellens/service-support";
+import type { AuthServiceConfig } from "../../config/auth-service-config.js";
 
-const authSessionVerifier = new DevAuthSessionVerifier();
-
-export function registerAuthRoutes(app: Hono<ServiceBindings>): void {
-  app.post("/api/v1/auth/demo-login", async (c) => {
-    const body = await c.req.json().catch(() => ({}));
-    const parsed = demoLoginSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return c.json(
-        problemDetails({
-          title: "Invalid demo login request",
-          status: 400,
-          detail: "displayName must be a string when provided.",
-          code: "auth.demo_login.invalid_request",
-          correlationId: c.get("correlationId"),
-          details: parsed.error.issues,
-        }),
-        400,
-      );
-    }
-
-    const user = {
-      userId: "demo-user",
-      displayName: parsed.data.displayName?.trim() || "Demo user",
-    };
-
-    return c.json({
-      accessToken: createDevAccessToken(user),
-      tokenType: "Bearer",
-      user,
-    });
+export function registerAuthRoutes(app: Hono<ServiceBindings>, config: AuthServiceConfig): void {
+  const authSessionVerifier = createRuntimeAuthSessionVerifier({
+    cognitoUserPoolId: config.cognitoUserPoolId,
+    cognitoUserPoolClientId: config.cognitoUserPoolClientId,
   });
+
+  if (config.allowDemoLogin) {
+    app.post("/api/v1/auth/demo-login", async (c) => {
+      const body = await c.req.json().catch(() => ({}));
+      const parsed = demoLoginSchema.safeParse(body);
+
+      if (!parsed.success) {
+        return c.json(
+          problemDetails({
+            title: "Invalid demo login request",
+            status: 400,
+            detail: "displayName must be a string when provided.",
+            code: "auth.demo_login.invalid_request",
+            correlationId: c.get("correlationId"),
+            details: parsed.error.issues,
+          }),
+          400,
+        );
+      }
+
+      const user = {
+        userId: "demo-user",
+        displayName: parsed.data.displayName?.trim() || "Demo user",
+      };
+
+      return c.json({
+        accessToken: createDevAccessToken(user),
+        tokenType: "Bearer",
+        user,
+      });
+    });
+  }
 
   app.get("/api/v1/auth/me", async (c) => {
     const user = await authSessionVerifier.verify(c.req.header("Authorization"));

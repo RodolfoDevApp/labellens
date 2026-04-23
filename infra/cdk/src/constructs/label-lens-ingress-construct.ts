@@ -2,12 +2,7 @@ import { CfnOutput, Duration } from "aws-cdk-lib";
 import { Alarm, ComparisonOperator, Metric, TreatMissingData } from "aws-cdk-lib/aws-cloudwatch";
 import { Peer, Port, SecurityGroup, SubnetType, Vpc } from "aws-cdk-lib/aws-ec2";
 import { FargateService } from "aws-cdk-lib/aws-ecs";
-import {
-  ApplicationLoadBalancer,
-  ApplicationListener,
-  ApplicationProtocol,
-  ApplicationTargetGroup,
-} from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import { ApplicationLoadBalancer, ApplicationListener, ApplicationProtocol, ApplicationTargetGroup } from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import type { IngressConfig } from "../config/label-lens-aws-config.js";
@@ -32,34 +27,26 @@ export class LabelLensIngressConstruct extends Construct {
   constructor(scope: Construct, id: string, props: LabelLensIngressConstructProps) {
     super(scope, id);
 
-    this.loadBalancerSecurityGroup = new SecurityGroup(this, "PublicLoadBalancerSecurityGroup", {
+    this.loadBalancerSecurityGroup = new SecurityGroup(this, "InternalLoadBalancerSecurityGroup", {
       vpc: props.vpc,
       securityGroupName: props.ingress.loadBalancerSecurityGroupName,
-      description: "Allows public HTTP ingress to the LabelLens gateway load balancer.",
+      description: "Allows API Gateway VPC Link traffic to reach the internal LabelLens ALB.",
       allowAllOutbound: true,
       disableInlineRules: true,
     });
 
-    for (const cidrBlock of props.ingress.allowedCidrBlocks) {
-      this.loadBalancerSecurityGroup.addIngressRule(
-        Peer.ipv4(cidrBlock),
-        Port.tcp(props.ingress.httpPort),
-        "Allow public HTTP ingress to the LabelLens gateway ALB.",
-      );
-    }
-
     props.gatewayIngressSecurityGroup.addIngressRule(
       Peer.securityGroupId(this.loadBalancerSecurityGroup.securityGroupId),
       Port.tcp(props.ingress.gatewayTargetPort),
-      "Allow the public ALB to reach only the gateway ECS tasks.",
+      "Allow the internal ALB to reach only the gateway ECS tasks.",
     );
 
     this.loadBalancer = new ApplicationLoadBalancer(this, "GatewayLoadBalancer", {
       vpc: props.vpc,
-      internetFacing: true,
+      internetFacing: false,
       securityGroup: this.loadBalancerSecurityGroup,
       vpcSubnets: {
-        subnetType: SubnetType.PUBLIC,
+        subnetType: SubnetType.PRIVATE_WITH_EGRESS,
       },
     });
 
@@ -125,42 +112,30 @@ export class LabelLensIngressConstruct extends Construct {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/dns-name`,
       stringValue: this.loadBalancer.loadBalancerDnsName,
     });
-
     new StringParameter(this, "GatewayAlbArnParameter", {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/arn`,
       stringValue: this.loadBalancer.loadBalancerArn,
     });
-
     new StringParameter(this, "GatewayAlbSecurityGroupIdParameter", {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/security-group-id`,
       stringValue: this.loadBalancerSecurityGroup.securityGroupId,
     });
-
     new StringParameter(this, "GatewayAlbHttpListenerArnParameter", {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/http-listener-arn`,
       stringValue: this.httpListener.listenerArn,
     });
-
     new StringParameter(this, "GatewayAlbTargetGroupArnParameter", {
       parameterName: `/${props.resourcePrefix}/ingress/gateway-alb/target-group-arn`,
       stringValue: this.gatewayTargetGroup.targetGroupArn,
     });
-
-    new StringParameter(this, "GatewayPublicUrlParameter", {
-      parameterName: `/${props.resourcePrefix}/ingress/gateway-url`,
-      stringValue: `http://${this.loadBalancer.loadBalancerDnsName}`,
-    });
-
     new StringParameter(this, "GatewayUnhealthyHostsAlarmNameParameter", {
       parameterName: `/${props.resourcePrefix}/alarms/gateway-target-unhealthy-hosts/name`,
       stringValue: gatewayUnhealthyHostsAlarmName,
     });
-
     new StringParameter(this, "GatewayTarget5xxAlarmNameParameter", {
       parameterName: `/${props.resourcePrefix}/alarms/gateway-target-5xx/name`,
       stringValue: gatewayTarget5xxAlarmName,
     });
-
     new StringParameter(this, "GatewayTargetResponseTimeAlarmNameParameter", {
       parameterName: `/${props.resourcePrefix}/alarms/gateway-target-response-time-high/name`,
       stringValue: gatewayTargetResponseTimeAlarmName,
@@ -168,10 +143,6 @@ export class LabelLensIngressConstruct extends Construct {
 
     new CfnOutput(this, "GatewayLoadBalancerDnsName", {
       value: this.loadBalancer.loadBalancerDnsName,
-    });
-
-    new CfnOutput(this, "GatewayPublicUrl", {
-      value: `http://${this.loadBalancer.loadBalancerDnsName}`,
     });
   }
 

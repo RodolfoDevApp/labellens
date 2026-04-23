@@ -9,16 +9,20 @@ import { LabelLensAwsStack } from "../stacks/label-lens-aws-stack.js";
 
 const app = new App();
 const environmentName = getContextOrEnv(app, "environmentName", "LABEL_LENS_ENVIRONMENT", "dev");
-const deploymentMode = normalizeDeploymentMode(getContextOrEnv(app, "deploymentMode", "LABEL_LENS_DEPLOYMENT_MODE", "release"));
+const deploymentMode = normalizeDeploymentMode(
+  getContextOrEnv(app, "deploymentMode", "LABEL_LENS_DEPLOYMENT_MODE", "release"),
+);
 const imageTag = normalizeImageTag(getContextOrEnv(app, "imageTag", "LABEL_LENS_IMAGE_TAG", "latest"));
-const gatewayAllowedOrigins = getCsvContextOrEnv(app, "gatewayAllowedOrigins", "LABEL_LENS_GATEWAY_ALLOWED_ORIGINS");
-const ingressAllowedCidrBlocks = getCsvContextOrEnv(app, "ingressAllowedCidrs", "LABEL_LENS_INGRESS_ALLOWED_CIDRS");
+const gatewayAllowedOrigins = getCsvContextOrEnv(
+  app,
+  "gatewayAllowedOrigins",
+  "LABEL_LENS_GATEWAY_ALLOWED_ORIGINS",
+);
 
 const config = createLabelLensAwsConfig(String(environmentName), {
   deploymentMode,
   gatewayAllowedOrigins,
   imageTag,
-  ingressAllowedCidrBlocks,
 });
 
 const region = process.env.CDK_DEFAULT_REGION ?? process.env.AWS_REGION ?? "us-east-1";
@@ -39,7 +43,10 @@ function getContextOrEnv(app: App, contextKey: string, envKey: string, fallback:
 function getCsvContextOrEnv(app: App, contextKey: string, envKey: string): readonly string[] | undefined {
   const value = getOptionalContextOrEnv(app, contextKey, envKey);
   if (!value) return undefined;
-  const entries = value.split(",").map((entry) => entry.trim()).filter(Boolean);
+  const entries = value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
   return entries.length > 0 ? entries : undefined;
 }
 

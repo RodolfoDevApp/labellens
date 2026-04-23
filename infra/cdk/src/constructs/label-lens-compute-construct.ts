@@ -78,7 +78,7 @@ export class LabelLensComputeConstruct extends Construct {
     this.gatewayIngressSecurityGroup = new SecurityGroup(this, "GatewayIngressSecurityGroup", {
       vpc: this.vpc,
       securityGroupName: props.compute.gatewayIngressSecurityGroupName,
-      description: "Allows the public load balancer to reach only the LabelLens gateway task.",
+      description: "Allows the internal load balancer to reach only the LabelLens gateway task.",
       allowAllOutbound: true,
       disableInlineRules: true,
     });
@@ -92,7 +92,7 @@ export class LabelLensComputeConstruct extends Construct {
     this.serviceSecurityGroup.addIngressRule(
       Peer.securityGroupId(this.gatewayIngressSecurityGroup.securityGroupId),
       Port.tcpRange(4101, 4105),
-      "Allow the gateway to call private LabelLens HTTP services.",
+      "Allow the gateway ALB and gateway service to call private LabelLens HTTP services.",
     );
 
     this.cluster = new Cluster(this, "Cluster", {
@@ -330,23 +330,39 @@ export class LabelLensComputeConstruct extends Construct {
           LABEL_LENS_MENU_SERVICE_URL: serviceUrl("menu-service", 4103),
           LABEL_LENS_PRODUCT_SERVICE_URL: serviceUrl("product-service", 4102),
         };
+      case "auth-service":
+        return {
+          ...common,
+          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
+          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
+        };
       case "food-service":
         return {
           ...common,
           ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+          USDA_API_KEY: "",
+          USDA_MODE: "fixture",
         };
       case "product-service":
         return {
           ...common,
-          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
           OPEN_FOOD_FACTS_MODE: "fixture",
           PRODUCT_NOT_FOUND_QUEUE_URL: props.queues.productNotFound.queueUrl,
+          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
         };
       case "menu-service":
+        return {
+          ...common,
+          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
+          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
+        };
       case "favorites-service":
         return {
           ...common,
           ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
+          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
         };
       default:
         return common;
@@ -358,17 +374,28 @@ export class LabelLensComputeConstruct extends Construct {
     deployable: DeployableContainerConfig,
     taskDefinition: FargateTaskDefinition,
   ): void {
-    props.table.grantReadWriteData(taskDefinition.taskRole);
+    const grantTableAccess = () => {
+      props.table.grantReadWriteData(taskDefinition.taskRole);
+    };
+
+    const grantAnalyticsPublish = () => {
+      props.queues.analytics.grantSendMessages(taskDefinition.taskRole);
+    };
 
     switch (deployable.name) {
       case "food-service":
-      case "menu-service":
-      case "favorites-service":
-        props.queues.analytics.grantSendMessages(taskDefinition.taskRole);
+        grantTableAccess();
+        grantAnalyticsPublish();
         break;
       case "product-service":
-        props.queues.analytics.grantSendMessages(taskDefinition.taskRole);
+        grantTableAccess();
+        grantAnalyticsPublish();
         props.queues.productNotFound.grantSendMessages(taskDefinition.taskRole);
+        break;
+      case "menu-service":
+      case "favorites-service":
+        grantTableAccess();
+        grantAnalyticsPublish();
         break;
       default:
         break;

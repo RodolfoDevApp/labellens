@@ -26,6 +26,8 @@ export type FavoritesServiceConfig = {
   awsRegion: string;
   labelLensTableName: string;
   analyticsQueueUrl?: string;
+  cognitoUserPoolId?: string;
+  cognitoUserPoolClientId?: string;
 };
 
 export function readFavoritesServiceConfig(): FavoritesServiceConfig {
@@ -42,6 +44,14 @@ export function readFavoritesServiceConfig(): FavoritesServiceConfig {
 
   if (process.env.ANALYTICS_QUEUE_URL) {
     config.analyticsQueueUrl = process.env.ANALYTICS_QUEUE_URL;
+  }
+
+  if (process.env.COGNITO_USER_POOL_ID) {
+    config.cognitoUserPoolId = process.env.COGNITO_USER_POOL_ID;
+  }
+
+  if (process.env.COGNITO_USER_POOL_CLIENT_ID) {
+    config.cognitoUserPoolClientId = process.env.COGNITO_USER_POOL_CLIENT_ID;
   }
 
   return config;

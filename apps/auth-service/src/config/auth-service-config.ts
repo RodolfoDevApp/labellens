@@ -18,10 +18,28 @@ function readNumber(name: string, fallback: number): number {
 
 export type AuthServiceConfig = {
   port: number;
+  allowDemoLogin: boolean;
+  cognitoUserPoolId?: string;
+  cognitoUserPoolClientId?: string;
 };
 
 export function readAuthServiceConfig(): AuthServiceConfig {
+  const cognitoUserPoolId = normalizeOptionalString(process.env.COGNITO_USER_POOL_ID);
+  const cognitoUserPoolClientId = normalizeOptionalString(process.env.COGNITO_USER_POOL_CLIENT_ID);
+
   return {
     port: readNumber("PORT", 4105),
+    allowDemoLogin: !(cognitoUserPoolId && cognitoUserPoolClientId),
+    ...(cognitoUserPoolId ? { cognitoUserPoolId } : {}),
+    ...(cognitoUserPoolClientId ? { cognitoUserPoolClientId } : {}),
   };
+}
+
+function normalizeOptionalString(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
 }

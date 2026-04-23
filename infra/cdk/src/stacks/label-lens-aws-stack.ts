@@ -1,6 +1,8 @@
 import { CfnOutput, Stack, type StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import type { LabelLensAwsConfig } from "../config/label-lens-aws-config.js";
+import { LabelLensApiGatewayConstruct } from "../constructs/label-lens-api-gateway-construct.js";
+import { LabelLensAuthConstruct } from "../constructs/label-lens-auth-construct.js";
 import { LabelLensComputeConstruct } from "../constructs/label-lens-compute-construct.js";
 import { LabelLensContainerRepositoriesConstruct } from "../constructs/label-lens-container-repositories-construct.js";
 import { LabelLensDataConstruct } from "../constructs/label-lens-data-construct.js";
@@ -21,6 +23,11 @@ export class LabelLensAwsStack extends Stack {
     const data = new LabelLensDataConstruct(this, "Data", {
       tableName: props.config.tableName,
       resourcePrefix: props.config.resourcePrefix,
+    });
+
+    const auth = new LabelLensAuthConstruct(this, "Auth", {
+      resourcePrefix: props.config.resourcePrefix,
+      auth: props.config.auth,
     });
 
     const messaging = new LabelLensMessagingConstruct(this, "Messaging", {
@@ -64,6 +71,7 @@ export class LabelLensAwsStack extends Stack {
       },
       compute: props.config.compute,
     });
+
     new LabelLensLambdaConsumersConstruct(this, "LambdaConsumers", {
       resourcePrefix: props.config.resourcePrefix,
       table: data.table,
@@ -82,11 +90,9 @@ export class LabelLensAwsStack extends Stack {
       },
     });
 
-
     const gatewayService = compute.services.gateway;
-
     if (!gatewayService) {
-      throw new Error("Missing gateway ECS service for public ingress.");
+      throw new Error("Missing gateway ECS service for API ingress.");
     }
 
     const ingress = new LabelLensIngressConstruct(this, "Ingress", {
@@ -97,6 +103,17 @@ export class LabelLensAwsStack extends Stack {
       ingress: props.config.ingress,
     });
 
+    const apiGateway = new LabelLensApiGatewayConstruct(this, "ApiGateway", {
+      resourcePrefix: props.config.resourcePrefix,
+      vpc: compute.vpc,
+      apiGateway: props.config.apiGateway,
+      listener: ingress.httpListener,
+      issuerUrl: auth.issuerUrl,
+      audience: auth.userPoolClient.userPoolClientId,
+    });
+
+    apiGateway.addIngressRuleFromApiGatewayToAlb(ingress.loadBalancerSecurityGroup, props.config.ingress.httpPort);
+
     new LabelLensOperationalParametersConstruct(this, "OperationalParameters", {
       resourcePrefix: props.config.resourcePrefix,
       environmentName: props.config.environmentName,
@@ -104,36 +121,13 @@ export class LabelLensAwsStack extends Stack {
       imageTag: props.config.deployment.imageTag,
     });
 
-    new CfnOutput(this, "LabelLensTableName", {
-      value: data.table.tableName,
-    });
-
-    new CfnOutput(this, "ProductNotFoundQueueUrl", {
-      value: messaging.productNotFoundQueue.queueUrl,
-    });
-
-    new CfnOutput(this, "AnalyticsQueueUrl", {
-      value: messaging.analyticsQueue.queueUrl,
-    });
-
-    new CfnOutput(this, "FoodCacheRefreshQueueUrl", {
-      value: messaging.foodCacheRefreshQueue.queueUrl,
-    });
-
-    new CfnOutput(this, "ProductCacheRefreshQueueUrl", {
-      value: messaging.productCacheRefreshQueue.queueUrl,
-    });
-
-    new CfnOutput(this, "EcsClusterName", {
-      value: compute.cluster.clusterName,
-    });
-
-    new CfnOutput(this, "VpcId", {
-      value: compute.vpc.vpcId,
-    });
-
-    new CfnOutput(this, "GatewayLoadBalancerDnsName", {
-      value: ingress.loadBalancer.loadBalancerDnsName,
-    });
+    new CfnOutput(this, "LabelLensTableName", { value: data.table.tableName });
+    new CfnOutput(this, "ProductNotFoundQueueUrl", { value: messaging.productNotFoundQueue.queueUrl });
+    new CfnOutput(this, "AnalyticsQueueUrl", { value: messaging.analyticsQueue.queueUrl });
+    new CfnOutput(this, "FoodCacheRefreshQueueUrl", { value: messaging.foodCacheRefreshQueue.queueUrl });
+    new CfnOutput(this, "ProductCacheRefreshQueueUrl", { value: messaging.productCacheRefreshQueue.queueUrl });
+    new CfnOutput(this, "EcsClusterName", { value: compute.cluster.clusterName });
+    new CfnOutput(this, "VpcId", { value: compute.vpc.vpcId });
+    new CfnOutput(this, "HttpApiUrl", { value: apiGateway.httpApi.apiEndpoint });
   }
 }

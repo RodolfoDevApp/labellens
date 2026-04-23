@@ -10,13 +10,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.936.0",
+    "@aws-sdk/client-sqs": "^3.936.0",
     "@aws-sdk/lib-dynamodb": "^3.936.0",
     "@labellens/application": "0.1.0",
     "@labellens/domain": "0.1.0",
-    "@aws-sdk/client-sqs": "^3.936.0"
+    "aws-jwt-verify": "^5.1.1"
   },
   "devDependencies": {
-    "typescript": "^5.9.3",
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
   }
 }
