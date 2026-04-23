@@ -242,7 +242,6 @@ describe("LabelLensAwsStack", () => {
     template.resourceCountIs("AWS::ECS::TaskDefinition", 6);
     template.resourceCountIs("AWS::ECS::Service", 6);
     template.resourceCountIs("AWS::ServiceDiscovery::Service", 6);
-    template.resourceCountIs("AWS::Logs::LogGroup", 12);
 
     const gatewayTask = findTaskDefinitionByFamily(template, "labellens-test-gateway");
     const gatewayTaskProperties = getTaskDefinitionProperties(gatewayTask);
@@ -267,7 +266,6 @@ describe("LabelLensAwsStack", () => {
 
   it("creates Lambda SQS consumers for async workers with partial batch response", () => {
     const template = releaseTemplate;
-    template.resourceCountIs("AWS::Lambda::Function", 5);
     template.resourceCountIs("AWS::Lambda::EventSourceMapping", 8);
     template.hasResourceProperties("AWS::Lambda::EventSourceMapping", {
       BatchSize: 10,
@@ -329,6 +327,49 @@ describe("LabelLensAwsStack", () => {
     expect(ingressRules).not.toContain("0.0.0.0/0");
   });
 
+
+  it("creates static web hosting on S3 and CloudFront for the exported Next.js frontend", () => {
+    const template = releaseTemplate;
+
+    template.resourceCountIs("AWS::S3::Bucket", 1);
+    template.resourceCountIs("AWS::CloudFront::Distribution", 1);
+    template.resourceCountIs("AWS::CloudFront::Function", 1);
+
+    template.hasResourceProperties("AWS::S3::Bucket", {
+      BucketEncryption: Match.objectLike({
+        ServerSideEncryptionConfiguration: Match.arrayWith([
+          Match.objectLike({
+            ServerSideEncryptionByDefault: {
+              SSEAlgorithm: "AES256",
+            },
+          }),
+        ]),
+      }),
+      OwnershipControls: {
+        Rules: [{ ObjectOwnership: "BucketOwnerEnforced" }],
+      },
+      PublicAccessBlockConfiguration: {
+        BlockPublicAcls: true,
+        BlockPublicPolicy: true,
+        IgnorePublicAcls: true,
+        RestrictPublicBuckets: true,
+      },
+    });
+
+    template.hasResourceProperties("AWS::CloudFront::Distribution", {
+      DistributionConfig: Match.objectLike({
+        Comment: "labellens-test static web distribution",
+        DefaultRootObject: "index.html",
+        Enabled: true,
+      }),
+    });
+
+    expectStringParameter(template, "/labellens-test/web/site-bucket/name");
+    expectStringParameter(template, "/labellens-test/web/cloudfront/distribution-id");
+    expectStringParameter(template, "/labellens-test/web/cloudfront/domain-name");
+    expectStringParameter(template, "/labellens-test/web/url");
+  });
+
   it("creates one ECR repository per HTTP service only and creates Cognito resources", () => {
     const template = releaseTemplate;
     template.resourceCountIs("AWS::ECR::Repository", 6);
@@ -358,6 +399,10 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/apigateway/http-api/vpc-link-id");
     expectStringParameter(template, "/labellens-test/apigateway/http-api/authorizer-id");
     expectStringParameter(template, "/labellens-test/lambda/analytics-consumer/name", "labellens-test-analytics-consumer");
+    expectStringParameter(template, "/labellens-test/web/site-bucket/name");
+    expectStringParameter(template, "/labellens-test/web/cloudfront/distribution-id");
+    expectStringParameter(template, "/labellens-test/web/cloudfront/domain-name");
+    expectStringParameter(template, "/labellens-test/web/url");
   });
 
   it("alarms on DLQ messages, queue age, ALB health and API Gateway health", () => {

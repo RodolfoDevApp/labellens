@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api-base-url";
+import { createApiUrl } from "./api-base-url";
 import { authHeaders } from "./auth-headers";
 import { parseJsonResponse } from "./parse-json-response";
 import type {
@@ -11,7 +11,7 @@ import type {
 } from "./api-types";
 
 export async function calculateMenu(items: MenuCalculationItemDto[]): Promise<MenuCalculationResponseDto> {
-  const response = await fetch(new URL("/api/v1/menus/calculate", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/menus/calculate"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -23,7 +23,7 @@ export async function calculateMenu(items: MenuCalculationItemDto[]): Promise<Me
 }
 
 export async function saveMenuDraft(accessToken: string, menu: SaveMenuRequestDto): Promise<SaveMenuResponseDto> {
-  const response = await fetch(new URL("/api/v1/menus", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/menus"), {
     method: "POST",
     headers: {
       ...authHeaders(accessToken),
@@ -40,7 +40,7 @@ export async function updateSavedMenu(
   menuId: string,
   menu: SaveMenuRequestDto,
 ): Promise<SaveMenuResponseDto> {
-  const response = await fetch(new URL(`/api/v1/menus/${menuId}`, API_BASE_URL), {
+  const response = await fetch(await createApiUrl(`/api/v1/menus/${menuId}`), {
     method: "PUT",
     headers: {
       ...authHeaders(accessToken),
@@ -53,7 +53,7 @@ export async function updateSavedMenu(
 }
 
 export async function listSavedMenus(accessToken: string): Promise<SavedMenusResponseDto> {
-  const response = await fetch(new URL("/api/v1/menus", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/menus"), {
     headers: authHeaders(accessToken),
   });
 
@@ -61,7 +61,7 @@ export async function listSavedMenus(accessToken: string): Promise<SavedMenusRes
 }
 
 export async function deleteSavedMenu(accessToken: string, menuId: string): Promise<DeleteMenuResponseDto> {
-  const response = await fetch(new URL(`/api/v1/menus/${menuId}`, API_BASE_URL), {
+  const response = await fetch(await createApiUrl(`/api/v1/menus/${menuId}`), {
     method: "DELETE",
     headers: authHeaders(accessToken),
   });

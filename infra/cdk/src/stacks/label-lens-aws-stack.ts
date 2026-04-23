@@ -11,6 +11,7 @@ import { LabelLensLambdaConsumersConstruct } from "../constructs/label-lens-lamb
 import { LabelLensMessagingConstruct } from "../constructs/label-lens-messaging-construct.js";
 import { LabelLensOperationalParametersConstruct } from "../constructs/label-lens-operational-parameters-construct.js";
 import { LabelLensSchedulesConstruct } from "../constructs/label-lens-schedules-construct.js";
+import { LabelLensWebHostingConstruct } from "../constructs/label-lens-web-hosting-construct.js";
 
 export type LabelLensAwsStackProps = StackProps & {
   config: LabelLensAwsConfig;
@@ -114,6 +115,12 @@ export class LabelLensAwsStack extends Stack {
 
     apiGateway.addIngressRuleFromApiGatewayToAlb(ingress.loadBalancerSecurityGroup, props.config.ingress.httpPort);
 
+
+    const webHosting = new LabelLensWebHostingConstruct(this, "WebHosting", {
+      resourcePrefix: props.config.resourcePrefix,
+      web: props.config.web,
+    });
+
     new LabelLensOperationalParametersConstruct(this, "OperationalParameters", {
       resourcePrefix: props.config.resourcePrefix,
       environmentName: props.config.environmentName,
@@ -129,5 +136,6 @@ export class LabelLensAwsStack extends Stack {
     new CfnOutput(this, "EcsClusterName", { value: compute.cluster.clusterName });
     new CfnOutput(this, "VpcId", { value: compute.vpc.vpcId });
     new CfnOutput(this, "HttpApiUrl", { value: apiGateway.httpApi.apiEndpoint });
+    new CfnOutput(this, "WebsiteUrl", { value: `https://${webHosting.distribution.distributionDomainName}` });
   }
 }

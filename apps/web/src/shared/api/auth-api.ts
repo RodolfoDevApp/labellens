@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api-base-url";
+import { createApiUrl } from "./api-base-url";
 import { authHeaders } from "./auth-headers";
 import { parseJsonResponse } from "./parse-json-response";
 import type { AuthUserDto, CurrentUserResponseDto, DemoLoginRequestDto, DemoLoginResponseDto } from "./api-types";
@@ -11,7 +11,7 @@ export async function demoLogin(credentials: DemoLoginRequestDto): Promise<DemoL
       ? credentials.displayName.trim()
       : fallbackName;
 
-  const response = await fetch(new URL("/api/v1/auth/demo-login", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/auth/demo-login"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -23,7 +23,7 @@ export async function demoLogin(credentials: DemoLoginRequestDto): Promise<DemoL
 }
 
 export async function getCurrentUser(accessToken: string): Promise<CurrentUserResponseDto> {
-  const response = await fetch(new URL("/api/v1/auth/me", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/auth/me"), {
     headers: authHeaders(accessToken),
   });
 

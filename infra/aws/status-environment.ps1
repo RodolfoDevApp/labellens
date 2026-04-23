@@ -37,16 +37,22 @@ Invoke-AwsTable -Arguments @("cloudformation","describe-stacks","--stack-name",$
 Write-Host ""
 
 $apiUrl = Get-SsmValue -Name "/$resourcePrefix/apigateway/http-api/url"
+$websiteUrl = Get-SsmValue -Name "/$resourcePrefix/web/url"
 $tableName = Get-SsmValue -Name "/$resourcePrefix/dynamodb/table-name"
 $userPoolId = Get-SsmValue -Name "/$resourcePrefix/cognito/user-pool-id"
 $userPoolClientId = Get-SsmValue -Name "/$resourcePrefix/cognito/user-pool-client-id"
 
-Write-Host "--- Public backend endpoint ---"
+Write-Host "--- Public endpoints ---"
 if ([string]::IsNullOrWhiteSpace($apiUrl)) {
   Write-Host "API Gateway URL: not found"
 } else {
   Write-Host "API Gateway URL: $apiUrl"
   Write-Host "Health:          $apiUrl/api/v1/health"
+}
+if ([string]::IsNullOrWhiteSpace($websiteUrl)) {
+  Write-Host "Website URL:     not found"
+} else {
+  Write-Host "Website URL:     $websiteUrl"
 }
 Write-Host ""
 

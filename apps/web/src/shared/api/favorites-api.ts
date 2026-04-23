@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "./api-base-url";
+import { createApiUrl } from "./api-base-url";
 import { authHeaders } from "./auth-headers";
 import { parseJsonResponse } from "./parse-json-response";
 import type {
@@ -12,7 +12,7 @@ export async function saveFavoriteFood(
   accessToken: string,
   item: SaveFavoriteRequestDto,
 ): Promise<FavoriteItemResponseDto> {
-  const response = await fetch(new URL("/api/v1/favorites", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/favorites"), {
     method: "POST",
     headers: {
       ...authHeaders(accessToken),
@@ -25,7 +25,7 @@ export async function saveFavoriteFood(
 }
 
 export async function listFavoriteFoods(accessToken: string): Promise<FavoritesResponseDto> {
-  const response = await fetch(new URL("/api/v1/favorites", API_BASE_URL), {
+  const response = await fetch(await createApiUrl("/api/v1/favorites"), {
     headers: authHeaders(accessToken),
   });
 
@@ -36,7 +36,7 @@ export async function deleteFavoriteFood(
   accessToken: string,
   favoriteItemId: string,
 ): Promise<DeleteFavoriteItemResponseDto> {
-  const response = await fetch(new URL(`/api/v1/favorites/${favoriteItemId}`, API_BASE_URL), {
+  const response = await fetch(await createApiUrl(`/api/v1/favorites/${favoriteItemId}`), {
     method: "DELETE",
     headers: authHeaders(accessToken),
   });

@@ -10,6 +10,7 @@ export type LabelLensAwsConfig = {
   ingress: IngressConfig;
   auth: AuthConfig;
   apiGateway: ApiGatewayConfig;
+  web: WebHostingConfig;
   queues: {
     productNotFound: QueueConfig;
     analytics: QueueConfig;
@@ -27,6 +28,7 @@ export type LabelLensAwsConfigOptions = {
   deploymentMode?: DeploymentMode;
   gatewayAllowedOrigins?: readonly string[];
   imageTag?: string;
+  websiteAllowedOrigins?: readonly string[];
 };
 
 export type DeploymentConfig = {
@@ -52,6 +54,16 @@ export type IngressConfig = {
 export type AuthConfig = {
   userPoolName: string;
   userPoolClientName: string;
+};
+
+
+export type WebHostingConfig = {
+  bucketNamePrefix: string;
+  distributionComment: string;
+  runtimeConfigObjectKey: string;
+  runtimeConfigCachePathPattern: string;
+  cloudFrontFunctionName: string;
+  priceClass: "PriceClass_100";
 };
 
 export type ApiGatewayConfig = {
@@ -136,6 +148,7 @@ export function createLabelLensAwsConfig(
   const deploymentMode = options.deploymentMode ?? "release";
   const imageTag = normalizeImageTag(options.imageTag ?? "latest");
   const gatewayAllowedOrigins = normalizeStringList(options.gatewayAllowedOrigins, ["http://localhost:3000"]);
+  const websiteAllowedOrigins = normalizeStringList(options.websiteAllowedOrigins, gatewayAllowedOrigins);
 
   return {
     environmentName: normalizedEnvironmentName,
@@ -211,12 +224,20 @@ export function createLabelLensAwsConfig(
       stageName: "$default",
       vpcLinkName: `${resourcePrefix}-vpc-link`,
       vpcLinkSecurityGroupName: `${resourcePrefix}-apigw-vpc-link-sg`,
-      corsAllowedOrigins: gatewayAllowedOrigins,
+      corsAllowedOrigins: websiteAllowedOrigins,
       corsAllowedHeaders: ["authorization", "content-type", "x-correlation-id"],
       corsAllowedMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       accessLogGroupName: `/${resourcePrefix}/apigateway/http-api`,
       api5xxAlarmThreshold: 5,
       apiLatencyAlarmThresholdMs: 2000,
+    },
+    web: {
+      bucketNamePrefix: `${resourcePrefix}-web`,
+      distributionComment: `${resourcePrefix} static web distribution`,
+      runtimeConfigObjectKey: "runtime-config.json",
+      runtimeConfigCachePathPattern: "runtime-config.json",
+      cloudFrontFunctionName: `${resourcePrefix}-web-rewrite`,
+      priceClass: "PriceClass_100",
     },
     queues: {
       productNotFound: {

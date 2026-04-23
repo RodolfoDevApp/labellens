@@ -10,7 +10,7 @@ npm run aws:smoke -- -Environment dev -Region us-east-1
 
 ## Day-2 operations
 
-Show stack, gateway URL, ECS services, queues, schedules and ALB target health:
+Show stack, website URL, gateway URL, ECS services, queues, schedules and ALB target health:
 
 ```powershell
 npm run aws:status -- -Environment dev -Region us-east-1
