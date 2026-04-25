@@ -29,8 +29,8 @@ export const openApiDocument: OpenApiDocument = {
   },
   servers: [
     {
-      url: "http://localhost:4000",
-      description: "Local gateway/API during development",
+      url: "https://api.labellens.invalid",
+      description: "LabelLens API endpoint",
     },
   ],
   tags: [
@@ -55,21 +55,82 @@ export const openApiDocument: OpenApiDocument = {
         },
       },
     },
-    "/api/v1/auth/demo-login": {
+    "/api/v1/auth/session": {
       post: {
         tags: ["auth"],
-        operationId: "demoLogin",
-        summary: "Create a local-only demo auth token.",
+        operationId: "startSession",
+        summary: "Start an authenticated session by logging in or registering.",
         requestBody: {
-          required: false,
-          content: jsonContent({ $ref: "#/components/schemas/DemoLoginRequest" }),
+          required: true,
+          content: jsonContent({ $ref: "#/components/schemas/AuthSessionRequest" }),
         },
         responses: {
           "200": {
-            description: "Demo token created.",
-            content: jsonContent({ $ref: "#/components/schemas/DemoLoginResponse" }),
+            description: "Session started.",
+            content: jsonContent({ $ref: "#/components/schemas/AuthSessionSuccessResponse" }),
           },
-          "400": problemResponse("Invalid demo login request."),
+          "202": {
+            description: "Registration created and waiting for confirmation.",
+            content: jsonContent({ $ref: "#/components/schemas/AuthConfirmationRequiredResponse" }),
+          },
+          "400": problemResponse("Invalid session request."),
+        },
+      },
+    },
+    "/api/v1/auth/confirm": {
+      post: {
+        tags: ["auth"],
+        operationId: "confirmSession",
+        summary: "Confirm a Cognito registration code and finish sign-in.",
+        requestBody: {
+          required: true,
+          content: jsonContent({ $ref: "#/components/schemas/AuthConfirmationRequest" }),
+        },
+        responses: {
+          "200": {
+            description: "Account confirmed and session started.",
+            content: jsonContent({ $ref: "#/components/schemas/AuthSessionSuccessResponse" }),
+          },
+          "400": problemResponse("Invalid confirmation request."),
+        },
+      },
+    },
+
+    "/api/v1/auth/password/forgot": {
+      post: {
+        tags: ["auth"],
+        operationId: "requestPasswordReset",
+        summary: "Send a Cognito password recovery code.",
+        requestBody: {
+          required: true,
+          content: jsonContent({ $ref: "#/components/schemas/AuthPasswordResetStartRequest" }),
+        },
+        responses: {
+          "200": {
+            description: "Recovery code sent.",
+            content: jsonContent({ $ref: "#/components/schemas/AuthPasswordResetStartResponse" }),
+          },
+          "400": problemResponse("Invalid password reset request."),
+          "409": problemResponse("Password reset is unavailable."),
+        },
+      },
+    },
+    "/api/v1/auth/password/reset": {
+      post: {
+        tags: ["auth"],
+        operationId: "confirmPasswordReset",
+        summary: "Confirm a Cognito password recovery code and set a new password.",
+        requestBody: {
+          required: true,
+          content: jsonContent({ $ref: "#/components/schemas/AuthPasswordResetConfirmRequest" }),
+        },
+        responses: {
+          "200": {
+            description: "Password updated.",
+            content: jsonContent({ $ref: "#/components/schemas/AuthPasswordResetConfirmResponse" }),
+          },
+          "400": problemResponse("Invalid password update request."),
+          "409": problemResponse("Password update is unavailable."),
         },
       },
     },
@@ -388,7 +449,7 @@ export const openApiDocument: OpenApiDocument = {
       bearerAuth: {
         type: "http",
         scheme: "bearer",
-        bearerFormat: "dev-token-local-now-cognito-later",
+        bearerFormat: "cognito-access-token",
       },
     },
     schemas: {
@@ -544,21 +605,53 @@ export const openApiDocument: OpenApiDocument = {
           displayName: { type: "string" },
         },
       },
-      DemoLoginRequest: {
+      AuthSessionRequest: {
         type: "object",
+        required: ["mode", "email", "password"],
         properties: {
+          mode: { type: "string", enum: ["login", "register"] },
+          email: { type: "string", format: "email", maxLength: 120 },
+          password: { type: "string", minLength: 8, maxLength: 128 },
           displayName: { type: "string", minLength: 1, maxLength: 60 },
         },
         additionalProperties: false,
       },
-      DemoLoginResponse: {
+      AuthConfirmationRequest: {
         type: "object",
-        required: ["tokenType", "accessToken", "user"],
+        required: ["email", "password", "confirmationCode"],
+        properties: {
+          email: { type: "string", format: "email", maxLength: 120 },
+          password: { type: "string", minLength: 8, maxLength: 128 },
+          confirmationCode: { type: "string", minLength: 3, maxLength: 32 },
+        },
+        additionalProperties: false,
+      },
+      AuthSessionSuccessResponse: {
+        type: "object",
+        required: ["tokenType", "accessToken", "user", "authMode"],
         properties: {
           tokenType: { type: "string", enum: ["Bearer"] },
           accessToken: { type: "string" },
+          authMode: { type: "string", enum: ["demo", "cognito"] },
           user: { $ref: "#/components/schemas/AuthUser" },
         },
+      },
+      AuthConfirmationRequiredResponse: {
+        type: "object",
+        required: ["nextStep", "email", "message"],
+        properties: {
+          nextStep: { type: "string", enum: ["confirm"] },
+          email: { type: "string", format: "email" },
+          deliveryDestination: { type: "string" },
+          deliveryMedium: { type: "string" },
+          message: { type: "string" },
+        },
+      },
+      AuthSessionResponse: {
+        oneOf: [
+          { $ref: "#/components/schemas/AuthSessionSuccessResponse" },
+          { $ref: "#/components/schemas/AuthConfirmationRequiredResponse" },
+        ],
       },
       HealthResponse: {
         type: "object",

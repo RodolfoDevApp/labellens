@@ -43,7 +43,7 @@ npm run aws:destroy -- -Environment dev -Region us-east-1 -Force
 With an explicit AWS profile and account guard:
 
 ```powershell
-npm run aws:destroy -- -Environment dev -Region us-east-1 -Profile your-profile -AccountId 445363793591 -Force
+npm run aws:destroy -- -Environment dev -Region us-east-1 -Profile your-profile -AccountId 123456789012 -Force
 ```
 
 What it does:

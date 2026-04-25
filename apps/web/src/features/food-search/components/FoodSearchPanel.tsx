@@ -135,7 +135,7 @@ export function FoodSearchPanel() {
           <div className="rounded-3xl bg-[#20281f] p-5 text-[#fff8e8] shadow-[0_14px_35px_rgba(32,40,31,0.18)]">
             <p className="text-base font-black">Start with a simple food.</p>
             <p className="mt-2 text-sm leading-6 text-[#efe3ca]">
-              Try oats, milk, yogurt or chicken. Results will appear here.
+              Try rice, milk, yogurt or chicken. Results will appear here.
             </p>
           </div>
         )}
@@ -148,14 +148,14 @@ export function FoodSearchPanel() {
 
         {status === "error" && (
           <div className="rounded-3xl border border-[#f0d2c7] bg-[#fff0ea] p-5 text-sm font-bold text-[#9b392f]">
-            Could not connect to the local gateway. Make sure Docker compose is running and the gateway is available on port 4000.
+            Could not reach the LabelLens API. Check the deployed API configuration and CORS settings.
             {errorMessage ? <p className="mt-2 text-xs">{errorMessage}</p> : null}
           </div>
         )}
 
         {status === "empty" && (
           <div className="rounded-3xl border border-[#f5d27a] bg-[#fff0b8] p-5 text-sm font-bold text-[#664b00]">
-            No results found. Try oats, milk, yogurt or chicken.
+            No results found. Try rice, milk, yogurt or chicken.
           </div>
         )}
 
@@ -167,7 +167,7 @@ export function FoodSearchPanel() {
                   Results
                 </p>
                 <h2 className="text-2xl font-black leading-tight text-[#18261e]">
-                  {visibleItems.length} of {items.length} foods for “{searchedQuery}”
+                  {visibleItems.length} result{visibleItems.length === 1 ? "" : "s"} on this page for “{searchedQuery}”
                 </h2>
               </div>
 

@@ -19,6 +19,7 @@ function readNumber(name: string, fallback: number): number {
 export type AuthServiceConfig = {
   port: number;
   allowDemoLogin: boolean;
+  awsRegion: string;
   cognitoUserPoolId?: string;
   cognitoUserPoolClientId?: string;
 };
@@ -30,6 +31,7 @@ export function readAuthServiceConfig(): AuthServiceConfig {
   return {
     port: readNumber("PORT", 4105),
     allowDemoLogin: !(cognitoUserPoolId && cognitoUserPoolClientId),
+    awsRegion: process.env.AWS_REGION ?? "us-east-1",
     ...(cognitoUserPoolId ? { cognitoUserPoolId } : {}),
     ...(cognitoUserPoolClientId ? { cognitoUserPoolClientId } : {}),
   };

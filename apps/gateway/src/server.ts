@@ -14,4 +14,4 @@ serve({
   port: config.port,
 });
 
-console.log(`LabelLens gateway listening on http://localhost:${config.port}`);
+console.log(`LabelLens gateway listening on port ${config.port}`);

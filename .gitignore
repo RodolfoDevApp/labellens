@@ -64,3 +64,33 @@ test-results/
 
 # generated exports
 _exports/
+# generated CDK context / local AWS metadata
+infra/cdk/cdk.context.json
+cdk.context.json
+
+# local diagnostics / scratch reports
+phase*-diagnostics.txt
+*-diagnostics.txt
+diagnostics/
+reports/
+
+# credentials / private keys
+*.pem
+*.key
+*.p8
+*.p12
+*.pfx
+*.crt
+*.cer
+*.csr
+*.jks
+*.keystore
+
+# AWS local credentials/config if ever copied by mistake
+.aws/
+aws-credentials*
+credentials.json
+secrets.json
+
+# local app runtime overrides
+runtime-config.local.json

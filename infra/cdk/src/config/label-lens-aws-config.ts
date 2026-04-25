@@ -24,10 +24,18 @@ export type LabelLensAwsConfig = {
   };
 };
 
+export type AuthMode = "demo" | "cognito";
+export type ProductSourceMode = "fixture" | "live";
+
 export type LabelLensAwsConfigOptions = {
+  authMode?: AuthMode;
   deploymentMode?: DeploymentMode;
   gatewayAllowedOrigins?: readonly string[];
   imageTag?: string;
+  openFoodFactsMode?: ProductSourceMode;
+  usdaApiKey?: string;
+  usdaApiKeyParameterName?: string;
+  usdaApiKeyParameterVersion?: number;
   websiteAllowedOrigins?: readonly string[];
 };
 
@@ -52,10 +60,10 @@ export type IngressConfig = {
 };
 
 export type AuthConfig = {
+  mode: AuthMode;
   userPoolName: string;
   userPoolClientName: string;
 };
-
 
 export type WebHostingConfig = {
   bucketNamePrefix: string;
@@ -67,6 +75,7 @@ export type WebHostingConfig = {
 };
 
 export type ApiGatewayConfig = {
+  authMode: AuthMode;
   httpApiName: string;
   stageName: string;
   vpcLinkName: string;
@@ -80,6 +89,7 @@ export type ApiGatewayConfig = {
 };
 
 export type ComputeConfig = {
+  authMode: AuthMode;
   vpcName: string;
   clusterName: string;
   serviceSecurityGroupName: string;
@@ -90,6 +100,10 @@ export type ComputeConfig = {
   maxAzs: number;
   natGateways: number;
   gatewayAllowedOrigins: readonly string[];
+  openFoodFactsMode: ProductSourceMode;
+  usdaApiKey?: string;
+  usdaApiKeyParameterName?: string;
+  usdaApiKeyParameterVersion?: number;
   serviceDiscoveryTtlSeconds: number;
   defaultServiceDesiredCount: number;
   deploymentMinHealthyPercent: number;
@@ -145,9 +159,19 @@ export function createLabelLensAwsConfig(
 ): LabelLensAwsConfig {
   const normalizedEnvironmentName = normalizeEnvironmentName(environmentName);
   const resourcePrefix = `labellens-${normalizedEnvironmentName}`;
+  const authMode = options.authMode ?? "cognito";
   const deploymentMode = options.deploymentMode ?? "release";
   const imageTag = normalizeImageTag(options.imageTag ?? "latest");
-  const gatewayAllowedOrigins = normalizeStringList(options.gatewayAllowedOrigins, ["http://localhost:3000"]);
+  const gatewayAllowedOrigins = normalizeStringList(options.gatewayAllowedOrigins, ["*"]);
+  const openFoodFactsMode = options.openFoodFactsMode ?? "live";
+  const usdaApiKey = normalizeOptionalString(options.usdaApiKey);
+  const usdaApiKeyParameterName = normalizeOptionalString(
+    options.usdaApiKeyParameterName ?? `/labellens/${normalizedEnvironmentName}/usda/api-key`,
+  );
+  const usdaApiKeyParameterVersion = normalizeOptionalPositiveInteger(
+    options.usdaApiKeyParameterVersion ?? 1,
+    "usdaApiKeyParameterVersion",
+  );
   const websiteAllowedOrigins = normalizeStringList(options.websiteAllowedOrigins, gatewayAllowedOrigins);
 
   return {
@@ -162,6 +186,7 @@ export function createLabelLensAwsConfig(
     compute: {
       vpcName: `${resourcePrefix}-vpc`,
       clusterName: `${resourcePrefix}-cluster`,
+      authMode,
       serviceSecurityGroupName: `${resourcePrefix}-service-sg`,
       gatewayIngressSecurityGroupName: `${resourcePrefix}-gateway-ingress-sg`,
       privateDnsNamespaceName: `${resourcePrefix}.local`,
@@ -170,6 +195,7 @@ export function createLabelLensAwsConfig(
       maxAzs: 2,
       natGateways: 1,
       gatewayAllowedOrigins,
+      openFoodFactsMode,
       serviceDiscoveryTtlSeconds: 30,
       defaultServiceDesiredCount: 1,
       deploymentMinHealthyPercent: 100,
@@ -179,6 +205,9 @@ export function createLabelLensAwsConfig(
         cpu: 256,
         memoryLimitMiB: 512,
       },
+      ...(usdaApiKey ? { usdaApiKey } : {}),
+      ...(usdaApiKeyParameterName ? { usdaApiKeyParameterName } : {}),
+      ...(usdaApiKeyParameterName ? { usdaApiKeyParameterVersion } : {}),
       deployables: [
         {
           name: "gateway",
@@ -216,10 +245,12 @@ export function createLabelLensAwsConfig(
       gatewayTargetResponseTimeAlarmThresholdSeconds: 2,
     },
     auth: {
+      mode: authMode,
       userPoolName: `${resourcePrefix}-users`,
       userPoolClientName: `${resourcePrefix}-web-client`,
     },
     apiGateway: {
+      authMode,
       httpApiName: `${resourcePrefix}-http-api`,
       stageName: "$default",
       vpcLinkName: `${resourcePrefix}-vpc-link`,
@@ -265,59 +296,78 @@ export function createLabelLensAwsConfig(
       scheduleGroupName: `${resourcePrefix}-schedules`,
       foodCacheRefresh: {
         scheduleName: `${resourcePrefix}-food-cache-refresh-daily`,
-        scheduleExpression: "cron(0 3 * * ? *)",
-        limit: 50,
+        scheduleExpression: "cron(0 4 * * ? *)",
+        limit: 100,
       },
       productCacheRefresh: {
         scheduleName: `${resourcePrefix}-product-cache-refresh-daily`,
-        scheduleExpression: "cron(15 3 * * ? *)",
-        limit: 50,
+        scheduleExpression: "cron(30 4 * * ? *)",
+        limit: 100,
       },
     },
   };
 }
 
-function normalizeEnvironmentName(environmentName: string): string {
+export function normalizeEnvironmentName(environmentName: string): string {
   const normalized = environmentName.trim().toLowerCase();
 
-  if (!normalized) {
-    throw new Error("environmentName must not be empty.");
-  }
-
-  if (!/^[a-z0-9-]+$/.test(normalized)) {
-    throw new Error("environmentName must contain only lowercase letters, numbers, and hyphens.");
+  if (!/^[a-z][a-z0-9-]{1,15}$/.test(normalized)) {
+    throw new Error(
+      `Invalid environment name '${environmentName}'. Use 2-16 lowercase letters, digits or hyphen, starting with a letter.`,
+    );
   }
 
   return normalized;
 }
 
 export function normalizeDeploymentMode(value: string): DeploymentMode {
-  const normalized = value.trim().toLowerCase();
-
-  if (normalized === "bootstrap" || normalized === "release") {
-    return normalized;
+  if (value === "bootstrap" || value === "release") {
+    return value;
   }
 
-  throw new Error("deploymentMode must be either 'bootstrap' or 'release'.");
+  throw new Error(`Unsupported deployment mode '${value}'. Use 'bootstrap' or 'release'.`);
 }
 
-export function normalizeImageTag(imageTag: string): string {
-  const normalized = imageTag.trim();
+export function normalizeImageTag(value: string): string {
+  const normalized = value.trim();
 
-  if (!normalized) {
-    throw new Error("imageTag must not be empty.");
+  if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/.test(normalized)) {
+    throw new Error(`Invalid image tag '${value}'.`);
   }
 
   return normalized;
 }
 
-function normalizeStringList(values: readonly string[] | undefined, fallback: readonly string[]): string[] {
-  const source = values && values.length > 0 ? values : fallback;
-  const normalized = source.map((value) => value.trim()).filter((value) => value.length > 0);
+function normalizeStringList(value: readonly string[] | undefined, fallback: readonly string[]): readonly string[] {
+  const source = value ?? fallback;
+  const normalized = source
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 
   if (normalized.length === 0) {
-    return [...fallback];
+    throw new Error("Expected at least one string entry.");
   }
 
-  return Array.from(new Set(normalized));
+  return [...new Set(normalized)];
+}
+
+function normalizeOptionalString(value: string | undefined): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : undefined;
+}
+
+function normalizeOptionalPositiveInteger(value: number | undefined, label: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error(`Invalid ${label} '${value}'. Use a positive integer.`);
+  }
+
+  return value;
 }

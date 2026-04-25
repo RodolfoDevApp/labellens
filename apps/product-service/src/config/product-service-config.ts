@@ -50,7 +50,7 @@ export function readProductServiceConfig(): ProductServiceConfig {
     openFoodFactsMode: isTest ? "fixture" : (process.env.OPEN_FOOD_FACTS_MODE ?? "fixture"),
     openFoodFactsUserAgent:
       process.env.OPEN_FOOD_FACTS_USER_AGENT ??
-      "LabelLens/0.1 (https://localhost; contact: dev@labellens.local)",
+      "LabelLens/0.1 (https://labellens.invalid; contact: support@labellens.invalid)",
   };
 
   const awsEndpointUrl = readOptionalUrl("AWS_ENDPOINT_URL");

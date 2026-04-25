@@ -1,5 +1,5 @@
-import { CfnOutput, RemovalPolicy } from "aws-cdk-lib";
-import { AccountRecovery, Mfa, UserPool, UserPoolClient } from "aws-cdk-lib/aws-cognito";
+import { CfnOutput, RemovalPolicy, Stack } from "aws-cdk-lib";
+import { AccountRecovery, Mfa, UserPool, UserPoolClient, VerificationEmailStyle } from "aws-cdk-lib/aws-cognito";
 import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import type { AuthConfig } from "../config/label-lens-aws-config.js";
@@ -19,11 +19,19 @@ export class LabelLensAuthConstruct extends Construct {
 
     this.userPool = new UserPool(this, "UserPool", {
       userPoolName: props.auth.userPoolName,
-      selfSignUpEnabled: false,
+      selfSignUpEnabled: true,
       signInCaseSensitive: false,
       signInAliases: {
-        email: true,
         username: true,
+        email: true,
+      },
+      autoVerify: {
+        email: true,
+      },
+      userVerification: {
+        emailSubject: "Verify your new account",
+        emailBody: "The verification code to your new account is {####}",
+        emailStyle: VerificationEmailStyle.CODE,
       },
       mfa: Mfa.OFF,
       accountRecovery: AccountRecovery.EMAIL_ONLY,
@@ -41,7 +49,8 @@ export class LabelLensAuthConstruct extends Construct {
       generateSecret: false,
     });
 
-    this.issuerUrl = `https://${this.userPool.userPoolProviderUrl}`;
+    const stack = Stack.of(this);
+    this.issuerUrl = `https://cognito-idp.${stack.region}.${stack.urlSuffix}/${this.userPool.userPoolId}`;
 
     new StringParameter(this, "UserPoolIdParameter", {
       parameterName: `/${props.resourcePrefix}/cognito/user-pool-id`,

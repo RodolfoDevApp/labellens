@@ -22,13 +22,13 @@ export function LandingFeatureGrid() {
       {features.map((feature) => (
         <article
           key={feature.title}
-          className="rounded-3xl border border-[#f0d7ad] bg-[#fff8ea] p-6 shadow-[0_14px_35px_rgba(88,61,24,0.08)]"
+          className="rounded-3xl border border-[#dde7db] bg-[#fffdfa] p-6 shadow-[0_14px_35px_rgba(58,81,67,0.08)]"
         >
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ffe7ad] text-2xl ring-1 ring-[#f0d7ad]" aria-hidden="true">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#e8f1e7] text-2xl ring-1 ring-[#d4e3d6]" aria-hidden="true">
             {feature.icon}
           </div>
-          <h2 className="mt-4 text-xl font-black text-[#18261e]">{feature.title}</h2>
-          <p className="mt-3 text-sm leading-6 text-[#5d665d]">{feature.text}</p>
+          <h2 className="mt-4 text-xl font-black text-[#183126]">{feature.title}</h2>
+          <p className="mt-3 text-sm leading-6 text-[#5d6d62]">{feature.text}</p>
         </article>
       ))}
     </section>

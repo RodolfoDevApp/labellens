@@ -151,17 +151,23 @@ function expectPortMapping(container: EcsContainerDefinition, containerPort: num
   );
 }
 
-function expectStringParameter(template: Template, name: string, expectedValue?: unknown): void {
+function getStringParameterResource(template: Template, name: string): CloudFormationResource {
   const resources = template.findResources("AWS::SSM::Parameter") as Record<string, CloudFormationResource>;
   const resource = Object.values(resources).find((candidate) => candidate.Properties?.Name === name);
 
   expect(resource).toBeDefined();
   expect(resource?.Properties?.Type).toBe("String");
 
+  return resource as CloudFormationResource;
+}
+
+function expectStringParameter(template: Template, name: string, expectedValue?: unknown): void {
+  const resource = getStringParameterResource(template, name);
+
   if (arguments.length === 3) {
-    expect(resource?.Properties?.Value).toEqual(expectedValue);
+    expect(resource.Properties?.Value).toEqual(expectedValue);
   } else {
-    expect(resource?.Properties?.Value).toBeDefined();
+    expect(resource.Properties?.Value).toBeDefined();
   }
 }
 
@@ -255,8 +261,8 @@ describe("LabelLensAwsStack", () => {
 
     const authTask = findTaskDefinitionByFamily(template, "labellens-test-auth-service");
     const authContainer = findContainer(authTask, "auth-service");
-    expectEnvVar(authContainer, "COGNITO_USER_POOL_ID", "{{resolve:ssm:/labellens-test/cognito/user-pool-id}}");
-    expectEnvVar(authContainer, "COGNITO_USER_POOL_CLIENT_ID", "{{resolve:ssm:/labellens-test/cognito/user-pool-client-id}}");
+    expectEnvVar(authContainer, "COGNITO_USER_POOL_ID", { Ref: "AuthUserPool8115E87F" });
+    expectEnvVar(authContainer, "COGNITO_USER_POOL_CLIENT_ID", { Ref: "AuthUserPoolClient0AA456E4" });
 
     const gatewayService = getServiceProperties(findServiceByName(template, "labellens-test-gateway"));
     expect(gatewayService.DesiredCount).toBe(1);
@@ -266,7 +272,7 @@ describe("LabelLensAwsStack", () => {
 
   it("creates Lambda SQS consumers for async workers with partial batch response", () => {
     const template = releaseTemplate;
-    template.resourceCountIs("AWS::Lambda::EventSourceMapping", 8);
+    template.resourceCountIs("AWS::ApiGatewayV2::Stage", 1);
     template.hasResourceProperties("AWS::Lambda::EventSourceMapping", {
       BatchSize: 10,
       MaximumBatchingWindowInSeconds: 5,
@@ -302,15 +308,28 @@ describe("LabelLensAwsStack", () => {
       Name: "labellens-test-http-api",
       ProtocolType: "HTTP",
       CorsConfiguration: Match.objectLike({
-        AllowOrigins: ["http://localhost:3000"],
+        AllowOrigins: ["*"],
       }),
     });
 
     const publicHealthRoute = findRouteByKey(template, "GET /api/v1/health");
     expect(publicHealthRoute.Properties?.AuthorizationType).toBe("NONE");
+    const publicSessionRoute = findRouteByKey(template, "POST /api/v1/auth/session");
+    expect(publicSessionRoute.Properties?.AuthorizationType).toBe("NONE");
+    const publicConfirmRoute = findRouteByKey(template, "POST /api/v1/auth/confirm");
+    expect(publicConfirmRoute.Properties?.AuthorizationType).toBe("NONE");
     const protectedMenusRoute = findRouteByKey(template, "GET /api/v1/menus");
     expect(protectedMenusRoute.Properties?.AuthorizationType).toBe("JWT");
     expect(protectedMenusRoute.Properties?.AuthorizerId).toBeDefined();
+
+    const authorizers = template.findResources("AWS::ApiGatewayV2::Authorizer") as Record<string, CloudFormationResource>;
+    const authorizer = Object.values(authorizers)[0];
+    const jwtConfigurationText = JSON.stringify(authorizer?.Properties?.JwtConfiguration);
+
+    expect(jwtConfigurationText).toContain("cognito-idp.us-east-1.");
+    expect(jwtConfigurationText).toContain("AWS::URLSuffix");
+    expect(jwtConfigurationText).toContain("AuthUserPool8115E87F");
+    expect(jwtConfigurationText).toContain("AuthUserPoolClient0AA456E4");
   });
 
   it("creates internal ALB ingress for gateway and removes public backend exposure", () => {
@@ -326,7 +345,6 @@ describe("LabelLensAwsStack", () => {
     const ingressRules = JSON.stringify(template.findResources("AWS::EC2::SecurityGroupIngress"));
     expect(ingressRules).not.toContain("0.0.0.0/0");
   });
-
 
   it("creates static web hosting on S3 and CloudFront for the exported Next.js frontend", () => {
     const template = releaseTemplate;
@@ -377,7 +395,10 @@ describe("LabelLensAwsStack", () => {
     template.resourceCountIs("AWS::Cognito::UserPoolClient", 1);
     template.hasResourceProperties("AWS::Cognito::UserPool", {
       UserPoolName: "labellens-test-users",
+      AliasAttributes: ["email"],
       UsernameConfiguration: { CaseSensitive: false },
+      AutoVerifiedAttributes: ["email"],
+      UsernameAttributes: Match.absent(),
     });
     template.hasResourceProperties("AWS::Cognito::UserPoolClient", {
       ClientName: "labellens-test-web-client",
@@ -391,7 +412,11 @@ describe("LabelLensAwsStack", () => {
     expectStringParameter(template, "/labellens-test/runtime/auth-mode", "cognito-jwt");
     expectStringParameter(template, "/labellens-test/cognito/user-pool-id");
     expectStringParameter(template, "/labellens-test/cognito/user-pool-client-id");
-    expectStringParameter(template, "/labellens-test/cognito/issuer-url");
+    const issuerUrlParameter = getStringParameterResource(template, "/labellens-test/cognito/issuer-url");
+    const issuerUrlValueText = JSON.stringify(issuerUrlParameter.Properties?.Value);
+    expect(issuerUrlValueText).toContain("cognito-idp.us-east-1.");
+    expect(issuerUrlValueText).toContain("AWS::URLSuffix");
+    expect(issuerUrlValueText).toContain("AuthUserPool8115E87F");
     expectStringParameter(template, "/labellens-test/apigateway/http-api/id");
     expectStringParameter(template, "/labellens-test/apigateway/http-api/name", "labellens-test-http-api");
     expectStringParameter(template, "/labellens-test/apigateway/http-api/url");

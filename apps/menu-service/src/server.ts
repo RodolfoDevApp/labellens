@@ -9,4 +9,4 @@ serve({
   port: config.port,
 });
 
-console.log(`LabelLens menu-service listening on http://localhost:${config.port}`);
+console.log(`LabelLens menu-service listening on port ${config.port}`);

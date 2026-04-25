@@ -11,6 +11,7 @@ import {
   LogDrivers,
   PropagatedTagSource,
   Protocol,
+  Secret,
 } from "aws-cdk-lib/aws-ecs";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { DnsRecordType, PrivateDnsNamespace } from "aws-cdk-lib/aws-servicediscovery";
@@ -33,6 +34,10 @@ export type LabelLensComputeConstructProps = {
     foodCacheRefreshDeadLetter: Queue;
     productCacheRefresh: Queue;
     productCacheRefreshDeadLetter: Queue;
+  };
+  auth: {
+    userPoolId: string;
+    userPoolClientId: string;
   };
   compute: ComputeConfig;
 };
@@ -183,10 +188,13 @@ export class LabelLensComputeConstruct extends Construct {
       removalPolicy: RemovalPolicy.RETAIN,
     });
 
+    const containerSecrets = this.secretsForDeployable(props, deployable, taskDefinition);
+
     const container = taskDefinition.addContainer(`${constructId}Container`, {
       containerName: deployable.name,
       image: ContainerImage.fromEcrRepository(repository, props.compute.imageTag),
       environment: this.environmentForDeployable(props, deployable),
+      ...(containerSecrets ? { secrets: containerSecrets } : {}),
       logging: LogDrivers.awsLogs({
         logGroup,
         streamPrefix: deployable.name,
@@ -331,44 +339,84 @@ export class LabelLensComputeConstruct extends Construct {
           LABEL_LENS_PRODUCT_SERVICE_URL: serviceUrl("product-service", 4102),
         };
       case "auth-service":
-        return {
-          ...common,
-          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
-          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
-        };
+        return props.compute.authMode === "cognito"
+          ? {
+              ...common,
+              COGNITO_USER_POOL_ID: props.auth.userPoolId,
+              COGNITO_USER_POOL_CLIENT_ID: props.auth.userPoolClientId,
+            }
+          : common;
       case "food-service":
         return {
           ...common,
           ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
-          USDA_API_KEY: "",
-          USDA_MODE: "fixture",
+          USDA_API_BASE_URL: "https://api.nal.usda.gov/fdc/v1",
+          ...(!props.compute.usdaApiKeyParameterName && props.compute.usdaApiKey ? { USDA_API_KEY: props.compute.usdaApiKey } : {}),
         };
       case "product-service":
         return {
           ...common,
-          OPEN_FOOD_FACTS_MODE: "fixture",
+          OPEN_FOOD_FACTS_MODE: props.compute.openFoodFactsMode,
           PRODUCT_NOT_FOUND_QUEUE_URL: props.queues.productNotFound.queueUrl,
           ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
         };
       case "menu-service":
-        return {
-          ...common,
-          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
-          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
-          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
-        };
+        return props.compute.authMode === "cognito"
+          ? {
+              ...common,
+              ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+              COGNITO_USER_POOL_ID: props.auth.userPoolId,
+              COGNITO_USER_POOL_CLIENT_ID: props.auth.userPoolClientId,
+            }
+          : {
+              ...common,
+              ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+            };
       case "favorites-service":
-        return {
-          ...common,
-          ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
-          COGNITO_USER_POOL_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-id}}`,
-          COGNITO_USER_POOL_CLIENT_ID: `{{resolve:ssm:/${props.resourcePrefix}/cognito/user-pool-client-id}}`,
-        };
+        return props.compute.authMode === "cognito"
+          ? {
+              ...common,
+              ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+              COGNITO_USER_POOL_ID: props.auth.userPoolId,
+              COGNITO_USER_POOL_CLIENT_ID: props.auth.userPoolClientId,
+            }
+          : {
+              ...common,
+              ANALYTICS_QUEUE_URL: props.queues.analytics.queueUrl,
+            };
       default:
         return common;
     }
   }
 
+
+  private secretsForDeployable(
+    props: LabelLensComputeConstructProps,
+    deployable: DeployableContainerConfig,
+    taskDefinition: FargateTaskDefinition,
+  ): Record<string, Secret> | undefined {
+    if (deployable.name !== "food-service" || !props.compute.usdaApiKeyParameterName) {
+      return undefined;
+    }
+
+    const parameter = StringParameter.fromSecureStringParameterAttributes(
+      this,
+      `${toConstructId(deployable.name)}UsdaApiKeyParameter`,
+      {
+        parameterName: props.compute.usdaApiKeyParameterName,
+        simpleName: false,
+        version: props.compute.usdaApiKeyParameterVersion ?? 1,
+      },
+    );
+
+    if (taskDefinition.executionRole) {
+      parameter.grantRead(taskDefinition.executionRole);
+    }
+
+    return {
+      USDA_API_KEY: Secret.fromSsmParameter(parameter),
+    };
+  }
   private grantRuntimePermissions(
     props: LabelLensComputeConstructProps,
     deployable: DeployableContainerConfig,

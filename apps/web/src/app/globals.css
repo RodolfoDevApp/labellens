@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f3ead7;
-  --foreground: #18261e;
+  --background: #f7faf5;
+  --foreground: #183126;
 }
 
 @theme inline {
@@ -17,15 +17,27 @@ html {
 }
 
 body {
+  max-width: 100%;
+  overflow-x: hidden;
   background:
-    radial-gradient(circle at top left, rgba(255, 224, 145, 0.32), transparent 34rem),
-    radial-gradient(circle at top right, rgba(185, 220, 124, 0.24), transparent 30rem),
-    var(--background);
+    radial-gradient(circle at top left, rgba(211, 230, 217, 0.72), transparent 34rem),
+    radial-gradient(circle at top right, rgba(244, 235, 219, 0.86), transparent 30rem),
+    linear-gradient(180deg, #f8fbf7 0%, #f4f8f2 48%, #eef4ef 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
   text-rendering: optimizeLegibility;
 }
 
+
+main {
+  padding-bottom: calc(7.5rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 768px) {
+  main {
+    padding-bottom: 0;
+  }
+}
 button:not(:disabled),
 a,
 select,
@@ -37,6 +49,31 @@ summary,
 button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
+}
+
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear,
+.ll-password-input::-ms-reveal,
+.ll-password-input::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-caps-lock-indicator,
+.ll-password-input::-webkit-credentials-auto-fill-button,
+.ll-password-input::-webkit-caps-lock-indicator {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+  position: absolute;
+  right: 0;
+}
+
+.ll-password-input {
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 input,
@@ -53,19 +90,19 @@ a {
 }
 
 
-.ll-app-bg {
+ .ll-app-bg {
   background:
-    radial-gradient(circle at 8% 0%, rgba(255, 214, 122, 0.28), transparent 28rem),
-    radial-gradient(circle at 92% 10%, rgba(187, 222, 134, 0.22), transparent 30rem),
-    linear-gradient(180deg, #f7edda 0%, #f3ead7 48%, #efe3c8 100%);
+    radial-gradient(circle at 8% 0%, rgba(214, 232, 219, 0.68), transparent 28rem),
+    radial-gradient(circle at 92% 10%, rgba(243, 235, 219, 0.86), transparent 30rem),
+    linear-gradient(180deg, #f8fbf7 0%, #f4f8f2 48%, #eef4ef 100%);
 }
 
 .ll-surface {
-  background: #fff8ea;
+  background: #fffdfa;
 }
 
 .ll-surface-soft {
-  background: #fff1d1;
+  background: #f4f8f1;
 }
 
 .ll-line-clamp-2 {
@@ -273,6 +310,15 @@ a {
     line-height: 1.1 !important;
   }
 
+  .ll-weekly-print .ll-week-table {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .ll-weekly-print .ll-print-show {
+    display: block !important;
+  }
+
   .ll-print-hide {
     display: none !important;
   }
@@ -280,6 +326,10 @@ a {
 
 @media (max-width: 767px) {
   body {
-    padding-bottom: 5.25rem;
+    padding-bottom: calc(6.25rem + max(0.75rem, env(safe-area-inset-bottom)));
   }
+}
+
+.ll-mobile-nav {
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
 }

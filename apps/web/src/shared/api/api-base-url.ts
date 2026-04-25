@@ -1,4 +1,3 @@
-const LOCAL_API_BASE_URL = "http://localhost:4000";
 const RUNTIME_CONFIG_PATH = "/runtime-config.json";
 
 type RuntimeConfig = {
@@ -18,42 +17,41 @@ export async function getApiBaseUrl(): Promise<string> {
     return envApiBaseUrl;
   }
 
-  if (typeof window === "undefined") {
-    return LOCAL_API_BASE_URL;
-  }
-
   if (!runtimeApiBaseUrlPromise) {
-    runtimeApiBaseUrlPromise = resolveBrowserApiBaseUrl();
+    runtimeApiBaseUrlPromise = resolveRuntimeApiBaseUrl().catch((error) => {
+      runtimeApiBaseUrlPromise = null;
+      throw error;
+    });
   }
 
   return runtimeApiBaseUrlPromise;
 }
 
-async function resolveBrowserApiBaseUrl(): Promise<string> {
+async function resolveRuntimeApiBaseUrl(): Promise<string> {
   const runtimeApiBaseUrl = await readRuntimeApiBaseUrl();
   if (runtimeApiBaseUrl) {
     return runtimeApiBaseUrl;
   }
 
-  const hostname = window.location.hostname.trim().toLowerCase();
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return LOCAL_API_BASE_URL;
-  }
-
-  throw new Error(
-    "Missing runtime-config.json apiBaseUrl for LabelLens web hosting. Deploy the frontend with Phase 8K assets.",
-  );
+  throw new Error("LabelLens API base URL is not configured for this deployment. Refresh the page after the deployment finishes publishing runtime-config.json.");
 }
 
 async function readRuntimeApiBaseUrl(): Promise<string | undefined> {
   try {
-    const response = await fetch(RUNTIME_CONFIG_PATH, { cache: "no-store" });
+    const runtimeConfigUrl = `${RUNTIME_CONFIG_PATH}?t=${Date.now()}`;
+    const response = await fetch(runtimeConfigUrl, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache",
+      },
+    });
 
     if (!response.ok) {
       return undefined;
     }
 
-    const runtimeConfig = (await response.json()) as RuntimeConfig;
+    const runtimeConfigText = removeJsonByteOrderMark(await response.text());
+    const runtimeConfig = JSON.parse(runtimeConfigText) as RuntimeConfig;
     return normalizeApiBaseUrl(runtimeConfig.apiBaseUrl);
   } catch {
     return undefined;
@@ -71,4 +69,8 @@ function normalizeApiBaseUrl(value: string | undefined): string | undefined {
 
 function ensureTrailingSlash(value: string): string {
   return value.endsWith("/") ? value : `${value}/`;
+}
+
+function removeJsonByteOrderMark(value: string): string {
+  return value.replace(/^\uFEFF/, "").replace(/^ï»¿/, "");
 }

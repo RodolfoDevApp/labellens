@@ -241,7 +241,7 @@ function MenuDocumentPreview({ title, subtitle, items, totals }: PreviewModel) {
     .filter((section) => section.items.length > 0);
 
   return (
-    <article className="ll-menu-preview rounded-[2rem] border border-[#e8c98f] bg-[#fffaf0] p-5 shadow-[0_18px_45px_rgba(88,61,24,0.11)] md:p-7">
+    <article className="ll-menu-preview overflow-hidden rounded-[2rem] border border-[#e8c98f] bg-[#fffaf0] p-5 shadow-[0_18px_45px_rgba(88,61,24,0.11)] md:p-7">
       <div className="grid gap-4 border-b border-[#eed8ac] pb-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">Menu summary</p>
@@ -254,7 +254,7 @@ function MenuDocumentPreview({ title, subtitle, items, totals }: PreviewModel) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 gap-2">
+      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-3">
         <MacroTile value={formatMacro(totals.proteinG, "g")} label="Protein" tone="leaf" />
         <MacroTile value={formatMacro(totals.carbsG, "g")} label="Carbs" tone="berry" />
         <MacroTile value={formatMacro(totals.fatG, "g")} label="Fat" tone="peach" />
@@ -285,7 +285,7 @@ function MenuDocumentPreview({ title, subtitle, items, totals }: PreviewModel) {
 
               <div className="divide-y divide-[#ead6b4]">
                 {section.items.map((item) => (
-                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 py-3 text-sm">
+                  <div key={item.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:gap-3">
                     <p className="min-w-0 font-black text-[#18261e]">{item.name}</p>
                     <p className="font-bold text-[#6b756c]">{item.grams} g</p>
                     <p className="font-black text-[#0b6b47]">{estimatedKcalForItem(item)}</p>
@@ -353,10 +353,10 @@ function StartMenuCard() {
         Add foods by grams first. Then come back to name the menu, save it, and place it in your week.
       </p>
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <Link href="/search" className="ll-interactive flex min-h-12 items-center justify-center rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.2)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
+        <Link href="/search" prefetch={false} className="ll-interactive flex min-h-12 items-center justify-center rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_12px_28px_rgba(11,122,83,0.2)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
           Search foods
         </Link>
-        <Link href="/scan" className="ll-interactive flex min-h-12 items-center justify-center rounded-2xl bg-[#ffe7ad] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
+        <Link href="/scan" prefetch={false} className="ll-interactive flex min-h-12 items-center justify-center rounded-2xl bg-[#ffe7ad] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
           Scan product
         </Link>
       </div>
@@ -509,10 +509,10 @@ function EditTab({
         </div>
 
         <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-          <Link href="/search" className="ll-interactive flex min-h-11 items-center justify-center rounded-2xl bg-[#fff8ea] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffefc2] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
+          <Link href="/search" prefetch={false} className="ll-interactive flex min-h-11 items-center justify-center rounded-2xl bg-[#fff8ea] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffefc2] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
             Add foods
           </Link>
-          <Link href="/scan" className="ll-interactive flex min-h-11 items-center justify-center rounded-2xl bg-[#ffe7ad] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
+          <Link href="/scan" prefetch={false} className="ll-interactive flex min-h-11 items-center justify-center rounded-2xl bg-[#ffe7ad] px-4 text-sm font-black text-[#18261e] ring-1 ring-[#f0d7ad] hover:bg-[#ffd98a] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]">
             Scan product
           </Link>
         </div>
@@ -534,37 +534,107 @@ function WeekPlannerBoard({
 }) {
   const menuById = new Map(savedMenus.map((menu) => [menu.id, menu]));
 
+  function getMenuForDay(day: WeekDayKey): SavedMenuDto | null {
+    return menuById.get(weekPlan[day] ?? "") ?? null;
+  }
+
+  function printWeekBoard() {
+    window.print();
+  }
+
   return (
-    <section className="rounded-[2rem] border border-[#f0d7ad] bg-[#fff1d1] p-4 shadow-[0_18px_45px_rgba(88,61,24,0.08)] md:p-5">
+    <section className="ll-weekly-print rounded-[2rem] border border-[#f0d7ad] bg-[#fff1d1] p-4 shadow-[0_18px_45px_rgba(88,61,24,0.08)] md:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-black uppercase tracking-wide text-[#0b7a53]">Week board</p>
           <h2 className="mt-1 text-2xl font-black text-[#18261e]">Plan meals by day</h2>
           <p className="mt-1 text-sm leading-6 text-[#5d665d]">Choose the saved menu you want to prep for each day. Meals fill the board automatically.</p>
         </div>
+        <button
+          type="button"
+          onClick={printWeekBoard}
+          className="ll-print-hide ll-interactive min-h-11 rounded-2xl bg-[#0b7a53] px-4 text-sm font-black text-white shadow-[0_12px_24px_rgba(11,122,83,0.2)] hover:bg-[#075f41] focus:outline-none focus:ring-2 focus:ring-[#ffb84d]"
+        >
+          Print / save PDF
+        </button>
       </div>
 
-      <div className="mt-5 overflow-x-auto rounded-3xl border border-[#e8c98f] bg-[#fff8ea]">
-        <table className="min-w-[980px] w-full border-collapse text-left text-sm">
+      <div className="ll-print-hide mt-5 grid gap-3 md:hidden">
+        {weekDays.map((day) => {
+          const menu = getMenuForDay(day.key);
+          return (
+            <article key={day.key} className="rounded-3xl border border-[#e8c98f] bg-[#fff8ea] p-4">
+              <label className="grid gap-2 text-sm font-black text-[#18261e]">
+                {day.fullLabel}
+                <select
+                  value={weekPlan[day.key] ?? ""}
+                  onChange={(event) => onChange(day.key, event.target.value)}
+                  disabled={savedMenus.length === 0}
+                  className="min-h-11 rounded-2xl border border-[#f0d7ad] bg-[#fff4df] px-3 text-sm font-black text-[#18261e] outline-none focus:border-[#0b7a53] focus:ring-2 focus:ring-[#c9f0a0] disabled:opacity-60"
+                >
+                  <option value="">No menu</option>
+                  {savedMenus.map((savedMenu) => (
+                    <option key={savedMenu.id} value={savedMenu.id}>{savedMenu.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="mt-4 space-y-3">
+                {mealOptions.map((meal) => {
+                  const foods = menuMealItems(menu, meal.key);
+                  return (
+                    <section key={`${day.key}-${meal.key}`} className="rounded-2xl border border-[#efd8b7] bg-[#fff4d9] p-3">
+                      <h3 className="text-xs font-black uppercase tracking-wide text-[#344538]">
+                        <span aria-hidden="true" className="mr-1">{mealIcons[meal.key]}</span>
+                        {meal.label}
+                      </h3>
+                      {foods.length === 0 ? (
+                        <p className="mt-2 text-xs font-bold text-[#9a855f]">No foods planned.</p>
+                      ) : (
+                        <ul className="mt-2 space-y-1">
+                          {foods.map((food) => (
+                            <li key={food.id} className="text-xs font-bold leading-5 text-[#18261e]">
+                              {food.name} <span className="text-[#6b756c]">{food.grams}g</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </section>
+                  );
+                })}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <div className="ll-week-table mt-5 hidden overflow-x-auto rounded-3xl border border-[#e8c98f] bg-[#fff8ea] md:block">
+        <table className="w-full min-w-[820px] border-collapse text-left text-sm">
           <thead>
             <tr className="bg-[#ffe7ad] text-[#18261e]">
               <th className="w-32 border-b border-r border-[#e8c98f] p-3 text-xs font-black uppercase tracking-wide">Meal</th>
-              {weekDays.map((day) => (
-                <th key={day.key} className="border-b border-r border-[#e8c98f] p-3 align-top last:border-r-0">
-                  <span className="block text-sm font-black">{day.fullLabel}</span>
-                  <select
-                    value={weekPlan[day.key] ?? ""}
-                    onChange={(event) => onChange(day.key, event.target.value)}
-                    disabled={savedMenus.length === 0}
-                    className="mt-2 min-h-10 w-full rounded-xl border border-[#f0d7ad] bg-[#fff4df] px-2 text-xs font-black text-[#18261e] outline-none focus:border-[#0b7a53] focus:ring-2 focus:ring-[#c9f0a0] disabled:opacity-60"
-                  >
-                    <option value="">No menu</option>
-                    {savedMenus.map((menu) => (
-                      <option key={menu.id} value={menu.id}>{menu.name}</option>
-                    ))}
-                  </select>
-                </th>
-              ))}
+              {weekDays.map((day) => {
+                const menu = getMenuForDay(day.key);
+                return (
+                  <th key={day.key} className="border-b border-r border-[#e8c98f] p-3 align-top last:border-r-0">
+                    <span className="block text-sm font-black">{day.fullLabel}</span>
+                    <select
+                      value={weekPlan[day.key] ?? ""}
+                      onChange={(event) => onChange(day.key, event.target.value)}
+                      disabled={savedMenus.length === 0}
+                      className="ll-print-hide mt-2 min-h-10 w-full rounded-xl border border-[#f0d7ad] bg-[#fff4df] px-2 text-xs font-black text-[#18261e] outline-none focus:border-[#0b7a53] focus:ring-2 focus:ring-[#c9f0a0] disabled:opacity-60"
+                    >
+                      <option value="">No menu</option>
+                      {savedMenus.map((savedMenu) => (
+                        <option key={savedMenu.id} value={savedMenu.id}>{savedMenu.name}</option>
+                      ))}
+                    </select>
+                    <span className="ll-print-show mt-2 hidden text-xs font-bold text-[#5d665d]">
+                      {menu?.name ?? "No menu"}
+                    </span>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -575,7 +645,7 @@ function WeekPlannerBoard({
                   {meal.label}
                 </th>
                 {weekDays.map((day) => {
-                  const menu = menuById.get(weekPlan[day.key] ?? "");
+                  const menu = getMenuForDay(day.key);
                   const foods = menuMealItems(menu, meal.key);
                   return (
                     <td key={`${day.key}-${meal.key}`} className="h-28 border-r border-t border-[#e8c98f] p-3 align-top last:border-r-0">
@@ -601,6 +671,7 @@ function WeekPlannerBoard({
     </section>
   );
 }
+
 
 export function ProfileMenusPanel() {
   const {

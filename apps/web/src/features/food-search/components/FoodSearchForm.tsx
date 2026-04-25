@@ -62,7 +62,7 @@ export function FoodSearchForm({
               type="search"
               value={query}
               onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Oats, yogurt, milk..."
+              placeholder="Rice, yogurt, milk..."
               className="min-h-14 w-full rounded-2xl border border-[#f0d7ad] bg-[#f5ecd8] px-4 pr-12 text-base text-[#18261e] outline-none hover:border-[#d8e7bd] hover:bg-[#fffaf2] focus:border-[#0b7a53] focus:bg-[#fffaf2] focus:ring-2 focus:ring-[#c9f0a0]"
             />
 

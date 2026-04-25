@@ -65,7 +65,7 @@ export function createUsdaClient(config: FoodServiceConfig): UsdaClient {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
-          "User-Agent": "LabelLens/0.1 local-dev",
+          "User-Agent": "LabelLens/0.1",
         },
         body: JSON.stringify({
           query,
@@ -91,7 +91,7 @@ export function createUsdaClient(config: FoodServiceConfig): UsdaClient {
         method: "GET",
         headers: {
           Accept: "application/json",
-          "User-Agent": "LabelLens/0.1 local-dev",
+          "User-Agent": "LabelLens/0.1",
         },
         signal: AbortSignal.timeout(8000),
       });

@@ -36,6 +36,18 @@ if ($LASTEXITCODE -ne 0) {
   throw "CDK environment bootstrap failed."
 }
 
+& powershell -ExecutionPolicy Bypass -File (Join-Path $scriptDir "preflight-deploy.ps1") `
+  -AccountId $resolvedAccountId `
+  -Environment $Environment `
+  -Region $Region `
+  @profileScriptArgs `
+  -DeploymentMode "bootstrap" `
+  -ImageTag $ImageTag
+
+if ($LASTEXITCODE -ne 0) {
+  throw "AWS bootstrap preflight failed."
+}
+
 & powershell -ExecutionPolicy Bypass -File (Join-Path $scriptDir "deploy-infra-bootstrap.ps1") `
   -Environment $Environment `
   -Region $Region `

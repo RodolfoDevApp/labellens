@@ -1,9 +1,10 @@
 import type {
+  AuthConfirmationApiRequestContract,
+  AuthSessionResponseContract,
   AuthUserContract,
   CurrentUserResponseContract,
   DeleteFavoriteItemResponseContract,
   DeleteMenuResponseContract,
-  DemoLoginResponseContract,
   FavoriteItemContract,
   FavoriteItemResponseContract,
   FavoritesResponseContract,
@@ -22,6 +23,7 @@ import type {
   SaveMenuResponseContract,
   SavedMenuContract,
   SavedMenusResponseContract,
+  AuthSessionApiRequestContract,
 } from "@labellens/contracts";
 
 export type NutritionFactsDto = NutritionFactsContract;
@@ -35,7 +37,7 @@ export type MenuTotalsDto = MenuTotalsContract;
 export type MenuCalculationItemDto = MenuCalculationItemContract;
 export type MenuCalculationResponseDto = MenuCalculationResponseContract;
 export type AuthUserDto = AuthUserContract;
-export type DemoLoginResponseDto = DemoLoginResponseContract;
+export type AuthSessionResponseDto = AuthSessionResponseContract;
 export type CurrentUserResponseDto = CurrentUserResponseContract;
 export type SaveMenuRequestDto = SaveMenuApiRequestContract;
 export type SaveMenuResponseDto = SaveMenuResponseContract;
@@ -50,9 +52,27 @@ export type DeleteFavoriteItemResponseDto = DeleteFavoriteItemResponseContract;
 
 export type AuthModeDto = "login" | "register";
 
-export type DemoLoginRequestDto = {
-  mode: AuthModeDto;
+export type AuthSessionRequestDto = AuthSessionApiRequestContract;
+export type AuthConfirmationRequestDto = AuthConfirmationApiRequestContract;
+
+export type PasswordResetRequestDto = {
   email: string;
+};
+
+export type PasswordResetResponseDto = {
+  nextStep: "reset-password";
+  email: string;
+  deliveryDestination?: string;
+  deliveryMedium?: string;
+  message: string;
+};
+
+export type PasswordResetConfirmRequestDto = {
+  email: string;
+  confirmationCode: string;
   password: string;
-  displayName?: string;
+};
+
+export type PasswordResetConfirmResponseDto = {
+  message: string;
 };

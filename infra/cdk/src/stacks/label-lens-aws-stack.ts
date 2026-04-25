@@ -71,6 +71,10 @@ export class LabelLensAwsStack extends Stack {
         productCacheRefreshDeadLetter: messaging.productCacheRefreshDeadLetterQueue,
       },
       compute: props.config.compute,
+      auth: {
+        userPoolId: auth.userPool.userPoolId,
+        userPoolClientId: auth.userPoolClient.userPoolClientId,
+      },
     });
 
     new LabelLensLambdaConsumersConstruct(this, "LambdaConsumers", {
@@ -79,6 +83,7 @@ export class LabelLensAwsStack extends Stack {
       vpc: compute.vpc,
       serviceSecurityGroup: compute.serviceSecurityGroup,
       privateDnsNamespaceName: props.config.compute.privateDnsNamespaceName,
+      deploymentMode: props.config.deployment.mode,
       queues: {
         productNotFound: messaging.productNotFoundQueue,
         productNotFoundDeadLetter: messaging.productNotFoundDeadLetterQueue,

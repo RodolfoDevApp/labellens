@@ -20,7 +20,7 @@ function Invoke-AwsTable {
 
 function Get-SsmValue {
   param([Parameter(Mandatory = $true)][string] $Name)
-  $result = Invoke-NativeCommand -FileName "aws" -Arguments @("ssm","get-parameter","--name",$Name,"--query","Parameter.Value","--output","text","--region",$Region) + $profileArgs
+  $result = Invoke-NativeCommand -FileName "aws" -Arguments (@("ssm","get-parameter","--name",$Name,"--query","Parameter.Value","--output","text","--region",$Region) + $profileArgs)
   if ($result.ExitCode -ne 0) { return "" }
   return $result.Output.Trim()
 }

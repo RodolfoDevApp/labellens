@@ -10,6 +10,7 @@ import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { Construct } from "constructs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { DeploymentMode } from "../config/label-lens-aws-config.js";
 
 export type LabelLensLambdaConsumersConstructProps = {
   resourcePrefix: string;
@@ -17,6 +18,7 @@ export type LabelLensLambdaConsumersConstructProps = {
   vpc: Vpc;
   serviceSecurityGroup: SecurityGroup;
   privateDnsNamespaceName: string;
+  deploymentMode: DeploymentMode;
   queues: {
     productNotFound: Queue;
     productNotFoundDeadLetter: Queue;
@@ -39,7 +41,6 @@ type LambdaConsumerConfig = {
 
 const LAMBDA_BATCH_SIZE = 10;
 const LAMBDA_BATCHING_WINDOW_SECONDS = 5;
-const LAMBDA_RESERVED_CONCURRENCY = 2;
 const LAMBDA_TIMEOUT_SECONDS = 30;
 
 export class LabelLensLambdaConsumersConstruct extends Construct {
@@ -133,13 +134,14 @@ export class LabelLensLambdaConsumersConstruct extends Construct {
     });
 
     return new NodejsFunction(this, consumer.id, {
+      // Do not reserve concurrency in this environment. The current AWS account
+      // rejects these updates because they drop unreserved concurrency below 10.
       functionName: consumer.functionName,
       entry: join(getRepositoryRoot(), "apps", "lambdas", "src", "handlers", consumer.handlerEntry),
       handler: "handler",
       runtime: Runtime.NODEJS_22_X,
       timeout: Duration.seconds(LAMBDA_TIMEOUT_SECONDS),
       memorySize: 512,
-      reservedConcurrentExecutions: LAMBDA_RESERVED_CONCURRENCY,
       tracing: Tracing.ACTIVE,
       vpc: props.vpc,
       vpcSubnets: {

@@ -36,6 +36,9 @@ export class CognitoJwtAuthSessionVerifier implements AuthSessionVerifier {
       }
 
       const displayName = normalizeDisplayName(
+        getStringClaim(payloadRecord, "name"),
+        getStringClaim(payloadRecord, "email"),
+        getStringClaim(payloadRecord, "preferred_username"),
         getStringClaim(payloadRecord, "username"),
         getStringClaim(payloadRecord, "cognito:username"),
       );
@@ -63,10 +66,26 @@ function getStringClaim(payload: Record<string, unknown>, claimName: string): st
 
 function normalizeDisplayName(...values: Array<string | undefined>): string {
   for (const value of values) {
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value.trim();
+    const displayName = normalizeDisplayNameCandidate(value);
+
+    if (displayName) {
+      return displayName;
     }
   }
 
   return "Authenticated user";
+}
+
+function normalizeDisplayNameCandidate(value: string | undefined): string | undefined {
+  const trimmed = value?.trim();
+
+  if (!trimmed || /^labellens-[a-f0-9]{40}$/i.test(trimmed)) {
+    return undefined;
+  }
+
+  if (trimmed.includes("@")) {
+    return trimmed.split("@")[0] || undefined;
+  }
+
+  return trimmed;
 }

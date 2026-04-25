@@ -7,11 +7,11 @@ type MacroTileProps = {
 };
 
 const toneClasses: Record<MacroTileTone, string> = {
-  leaf: "border-[#c9e9b5] bg-[#edfbdf] text-[#234f2b]",
-  sun: "border-[#f5d27a] bg-[#fff0b8] text-[#664b00]",
-  berry: "border-[#f4bfd0] bg-[#ffe7ef] text-[#71304a]",
-  peach: "border-[#f3c0a4] bg-[#ffe8d8] text-[#753b22]",
-  cream: "border-[#efd8b7] bg-[#f5ecd8] text-[#33291b]",
+  leaf: "border-[#cfe3d0] bg-[#eef7ef] text-[#2c5d44]",
+  sun: "border-[#e8d7a8] bg-[#f8f0d8] text-[#695225]",
+  berry: "border-[#e4cddd] bg-[#f8eef5] text-[#6a4561]",
+  peach: "border-[#e7d3c4] bg-[#f9f1eb] text-[#765241]",
+  cream: "border-[#dde5d8] bg-[#f7faf5] text-[#30463a]",
 };
 
 export function MacroTile({ value, label, tone = "cream" }: MacroTileProps) {

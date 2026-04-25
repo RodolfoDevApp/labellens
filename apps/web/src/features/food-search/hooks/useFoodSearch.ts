@@ -25,7 +25,7 @@ function sortValue(food: FoodItemDto, sortBy: SortKey): number {
 }
 
 export function useFoodSearch() {
-  const [query, setQuery] = useState("oats");
+  const [query, setQuery] = useState("");
   const [searchedQuery, setSearchedQuery] = useState<string | null>(null);
   const [items, setItems] = useState<FoodItemDto[]>([]);
   const [status, setStatus] = useState<SearchStatus>("idle");

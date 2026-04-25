@@ -47,7 +47,7 @@ export function readDevAuthUser(authorizationHeader: string | undefined | null):
       displayName:
         typeof parsed.displayName === "string" && parsed.displayName.length > 0
           ? parsed.displayName
-          : "Demo user",
+          : "LabelLens user",
     };
   } catch {
     return null;

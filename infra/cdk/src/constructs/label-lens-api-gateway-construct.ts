@@ -115,11 +115,22 @@ export class LabelLensApiGatewayConstruct extends Construct {
     this.addPublicRoute("/api/v1/products/search", [HttpMethod.GET], integration);
     this.addPublicRoute("/api/v1/menus/calculate", [HttpMethod.POST], integration);
 
-    this.addProtectedRoute("/api/v1/auth/me", [HttpMethod.GET], integration);
-    this.addProtectedRoute("/api/v1/menus", [HttpMethod.GET, HttpMethod.POST], integration);
-    this.addProtectedRoute("/api/v1/menus/{menuId}", [HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE], integration);
-    this.addProtectedRoute("/api/v1/favorites", [HttpMethod.GET, HttpMethod.POST], integration);
-    this.addProtectedRoute("/api/v1/favorites/{favoriteId}", [HttpMethod.DELETE], integration);
+    this.addPublicRoute("/api/v1/auth/session", [HttpMethod.POST], integration);
+    this.addPublicRoute("/api/v1/auth/confirm", [HttpMethod.POST], integration);
+
+    if (props.apiGateway.authMode === "demo") {
+      this.addPublicRoute("/api/v1/auth/me", [HttpMethod.GET], integration);
+      this.addPublicRoute("/api/v1/menus", [HttpMethod.GET, HttpMethod.POST], integration);
+      this.addPublicRoute("/api/v1/menus/{menuId}", [HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE], integration);
+      this.addPublicRoute("/api/v1/favorites", [HttpMethod.GET, HttpMethod.POST], integration);
+      this.addPublicRoute("/api/v1/favorites/{favoriteId}", [HttpMethod.DELETE], integration);
+    } else {
+      this.addProtectedRoute("/api/v1/auth/me", [HttpMethod.GET], integration);
+      this.addProtectedRoute("/api/v1/menus", [HttpMethod.GET, HttpMethod.POST], integration);
+      this.addProtectedRoute("/api/v1/menus/{menuId}", [HttpMethod.GET, HttpMethod.PUT, HttpMethod.DELETE], integration);
+      this.addProtectedRoute("/api/v1/favorites", [HttpMethod.GET, HttpMethod.POST], integration);
+      this.addProtectedRoute("/api/v1/favorites/{favoriteId}", [HttpMethod.DELETE], integration);
+    }
 
     this.api5xxAlarm = new Alarm(this, "HttpApi5xxAlarm", {
       alarmName: `${props.resourcePrefix}-http-api-5xx`,

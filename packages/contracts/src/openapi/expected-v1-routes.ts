@@ -19,11 +19,42 @@ export const EXPECTED_V1_ROUTES: ExpectedOpenApiRoute[] = [
     },
   },
   {
-    path: "/api/v1/auth/demo-login",
+    path: "/api/v1/auth/session",
     methods: ["post"],
     operationIds: {
       get: "",
-      post: "demoLogin",
+      post: "startSession",
+      put: "",
+      delete: "",
+    },
+  },
+  {
+    path: "/api/v1/auth/confirm",
+    methods: ["post"],
+    operationIds: {
+      get: "",
+      post: "confirmSession",
+      put: "",
+      delete: "",
+    },
+  },
+
+  {
+    path: "/api/v1/auth/password/forgot",
+    methods: ["post"],
+    operationIds: {
+      get: "",
+      post: "requestPasswordReset",
+      put: "",
+      delete: "",
+    },
+  },
+  {
+    path: "/api/v1/auth/password/reset",
+    methods: ["post"],
+    operationIds: {
+      get: "",
+      post: "confirmPasswordReset",
       put: "",
       delete: "",
     },
